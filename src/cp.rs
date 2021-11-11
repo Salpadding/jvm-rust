@@ -1,3 +1,6 @@
+use core::panic;
+use crate::attr::AttrInfo;
+
 #[derive(Default, Debug)]
 // java 类文件
 pub struct ClassFile {
@@ -10,6 +13,44 @@ pub struct ClassFile {
 
     // 常量池
     cp: ConstantPool,
+    // 类访问标志
+    access_flags: u16,
+    // 类索引, refers to cp ClassInfo
+    this_class_i: u16,
+    // 超类索引 refers to cp ClassInfo
+    super_class_i: u16,
+    // 接口索引 refers to cp ClassInfo
+    interfaces_i: Vec<u16>,
+
+    // fields
+    fields: Vec<MemberInfo>,
+
+    // methods
+    methods: Vec<MemberInfo>,
+}
+
+#[derive(Default, Debug)]
+pub struct MemberInfo {
+    access_flags: u16,
+    // refers to constant pool utf8
+    name_i: u16,
+    // refers to constant pool utf8
+    desc_i: u16,
+    attrs: Vec<AttrInfo>,
+}
+
+impl MemberInfo {
+    pub fn read_from(p: &mut ClassFileParser, cp: &ConstantPool) -> MemberInfo {
+        let mut m = MemberInfo { access_flags: p.u16(), name_i: p.u16(), desc_i: p.u16(), attrs: Vec::new() };
+        // parse attributes
+        let attr_len = p.u16();
+        let mut attrs: Vec<AttrInfo> = Vec::with_capacity(attr_len as usize);
+        for _ in 0..attr_len {
+            attrs.push(AttrInfo::read_from(p, cp))
+        }
+        m.attrs = attrs;
+        m
+    }
 }
 
 #[derive(Default, Debug)]
@@ -19,7 +60,7 @@ pub struct ConstantPool {
 }
 
 impl ConstantPool {
-    fn read_from(parser: &mut ClassFileParser) -> ConstantPool {
+    pub fn read_from(parser: &mut ClassFileParser) -> ConstantPool {
         // n of constant pool
         let n = parser.u16() as usize;
         let mut infos: Vec<ConstantInfo> = Vec::with_capacity(n);
@@ -34,6 +75,21 @@ impl ConstantPool {
             n,
             infos,
         }
+    }
+    
+    pub fn utf8(&self, i: usize) -> &str {
+        match self.infos[i as usize] {
+            ConstantInfo::Utf8(ref a) => &a,
+            _ => panic!("invalid utf8 index")
+        }
+    }
+
+    pub fn class(&self, i: usize) -> &str {
+        let j = match self.infos[i as usize] {
+            ConstantInfo::Class { name_i} => name_i,
+            _ => panic!("invalid class index")
+        };
+        self.utf8(j as usize)
     }
 
     fn read_info(p: &mut ClassFileParser) -> ConstantInfo {
@@ -150,21 +206,68 @@ mod ct_info_tag {
 impl ClassFile {
     pub fn new(bin: Vec<u8>) -> ClassFile {
         let mut c = ClassFile::default();
-        let mut parser = ClassFileParser::new(bin);
+        let mut p = ClassFileParser::new(bin);
 
         // 魔数, 主次版本号
-        c.magic = parser.u32();
-        c.minor_version = parser.u16();
-        c.major_version = parser.u16();
+        c.magic = p.u32();
+        c.minor_version = p.u16();
+        c.major_version = p.u16();
 
         // 常量池
-        c.cp = ConstantPool::read_from(&mut parser);
+        c.cp = ConstantPool::read_from(&mut p);
+        // 类访问标志, 类索引, 超类索引, 接口索引 
+        c.access_flags = p.u16();
+        c.this_class_i = p.u16();
+        c.super_class_i = p.u16();
+        let iface_cnt = p.u16();
+        c.interfaces_i = Vec::with_capacity(iface_cnt as usize);
+        for _ in 0..c.interfaces_i.capacity() {
+            c.interfaces_i.push(p.u16());
+        }
+
+        // fields and methods
+        c.fields = Self::read_members(&mut p, &c.cp);
+        c.methods = Self::read_members(&mut p, &c.cp);
         c
+    }
+
+    fn read_members(p: &mut ClassFileParser, cp: &ConstantPool) -> Vec<MemberInfo> {
+        let n = p.u16() as usize;
+        let mut v: Vec<MemberInfo> = Vec::with_capacity(n);
+
+        for _ in 0..n {
+            v.push(MemberInfo::read_from(p, cp));
+        }
+        v
+    }
+
+    // name of this class
+    pub fn this_class(&self) -> &str {
+        self.cp.class(self.this_class_i as usize)
+    } 
+
+    // name of super class, return "" if no super class
+    pub fn super_class(&self) -> &str {
+        if self.super_class_i == 0 {
+            ""
+        } else {
+            self.cp.class(self.super_class_i as usize)
+        }
+    }
+    
+    pub fn interface_len(&self) -> usize {
+        self.interfaces_i.len()
+    }
+
+    // interface list
+    pub fn interface(&self, i: usize) -> &str {
+        let j = self.interfaces_i[i];
+        self.cp.class(j as usize)
     }
 }
 
 // 字节流工具类
-struct ClassFileParser {
+pub struct ClassFileParser {
     bin: Vec<u8>,
     off: usize,
 }
@@ -259,5 +362,12 @@ mod test {
         let c = ClassFile::new(bin);
         println!("{:#?}", c);
         assert_eq!(c.magic, 0xCAFEBABE);
+
+        println!("{}", c.this_class());
+        println!("{}", c.super_class());
+
+        for i in 0..c.interfaces_i.len() {
+            println!("interface {}", c.interface(i))
+        }
     }
 }

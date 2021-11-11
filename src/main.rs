@@ -1,3 +1,4 @@
+mod attr;
 mod cp;
 
 fn main() {
