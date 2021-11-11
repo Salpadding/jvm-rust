@@ -27,7 +27,7 @@ impl ConstantPool {
 
         // parse constant infos
         for _ in 1..n {
-
+            infos.push(Self::read_info(parser))
         }
 
         ConstantPool {
@@ -36,8 +36,41 @@ impl ConstantPool {
         }
     }
 
-    fn read_info(parser: &mut ClassFileParser) -> ConstantInfo {
-        ConstantInfo::Blank
+    fn read_info(p: &mut ClassFileParser) -> ConstantInfo {
+        let tag = p.u8();
+        use ct_info_tag::*;
+        match tag {
+            INTEGER => ConstantInfo::Integer(p.u32() as i32),
+            FLOAT => ConstantInfo::Float(f32::from_bits(p.u32())),
+            LONG => ConstantInfo::Long(p.u64() as i64),
+            DOUBLE => ConstantInfo::Double(f64::from_bits(p.u64())),
+            UTF8 => {
+                let str_len = p.u16() as usize;
+                let bytes = p.bytes(str_len);
+                let utf8 = mutf8::mutf8_to_utf8(bytes).unwrap();
+                let s = String::from_utf8(utf8.into_owned()).unwrap();
+                ConstantInfo::Utf8(s)
+            }
+            STRING => ConstantInfo::String { utf8_i: p.u16() },
+            CLASS => ConstantInfo::Class { name_i: p.u16() },
+            NAME_AND_TYPE => ConstantInfo::NameAndType {
+                name_i: p.u16(),
+                desc_i: p.u16(),
+            },
+            FIELD_REF => ConstantInfo::FieldRef {
+                class_i: p.u16(),
+                name_type_i: p.u16(),
+            },
+            METHOD_REF => ConstantInfo::MethodRef {
+                class_i: p.u16(),
+                name_type_i: p.u16(),
+            },
+            INTERFACE_METHOD_REF => ConstantInfo::IFaceMethodRef {
+                class_i: p.u16(),
+                name_type_i: p.u16(),
+            },
+            _ => panic!("unknown tag {}", tag)
+        }
     }
 }
 
@@ -98,20 +131,20 @@ pub enum ConstantInfo {
 }
 
 mod ct_info_tag {
-    const class: u8 = 7;
-    const field_ref: u8 = 9;
-    const method_ref:u8 = 10;
-    const interface_method_ref:u8 = 11;
-    const string:u8 = 8;
-    const integer:u8 = 3;
-    const float:u8 = 4;
-    const long:u8 = 5;
-    const double:u8 = 6;
-    const name_and_type:u8 = 12;
-    const utf8:u8 = 1;
-    const method_handle:u8 = 15;
-    const method_type:u8 = 16;
-    const invoke_dynamic:u8 = 1;
+    pub const CLASS: u8 = 7;
+    pub const FIELD_REF: u8 = 9;
+    pub const METHOD_REF:u8 = 10;
+    pub const INTERFACE_METHOD_REF:u8 = 11;
+    pub const STRING:u8 = 8;
+    pub const INTEGER:u8 = 3;
+    pub const FLOAT:u8 = 4;
+    pub const LONG:u8 = 5;
+    pub const DOUBLE:u8 = 6;
+    pub const NAME_AND_TYPE:u8 = 12;
+    pub const UTF8:u8 = 1;
+    pub const METHOD_HANDLE:u8 = 15;
+    pub const METHOD_TYPE:u8 = 16;
+    pub const INVOKE_DYNAMIC:u8 = 18;
 }
 
 impl ClassFile {
@@ -126,7 +159,6 @@ impl ClassFile {
 
         // 常量池
         c.cp = ConstantPool::read_from(&mut parser);
-
         c
     }
 }
