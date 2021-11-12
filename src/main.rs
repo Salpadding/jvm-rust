@@ -1,4 +1,4 @@
-use std::{ops::Deref};
+use std::{ffi::OsString, ops::Deref, string::FromUtf8Error};
 
 #[derive(Debug)]
 pub struct StringErr(String);
@@ -30,6 +30,8 @@ macro_rules! im_err {
 }
 
 im_err!(std::io::Error);
+im_err!(FromUtf8Error);
+im_err!(OsString);
 
 mod utils;
 mod attr;

@@ -107,3 +107,104 @@ impl Entry for ZipEntry {
        return None;
     }
 }
+
+pub struct CompositeEntry {
+    children: Vec<Box<dyn Entry>>,
+}
+
+impl Entry for CompositeEntry {
+    fn read_class(&self, name: &str) -> Option<Vec<u8>> {
+        for e in self.children.iter() {
+            match e.read_class(name) {
+                Some(v) => { return Some(v); }
+                None => continue, 
+            }
+        }
+        None
+    }
+}
+
+impl CompositeEntry {
+    // spilt path by ':'
+    fn from_paths(paths: &str) -> Result<Self, StringErr> {
+        let sp: Vec<String> = paths.split(':').map(|x| x.to_string()).collect();
+        let mut children: Vec<Box<dyn Entry>> = Vec::with_capacity(sp.len());
+
+        for p in sp.iter() {
+            let e = new_entry(p)?;
+            children.push(e);
+        }
+
+        Ok(CompositeEntry { children })
+    }
+
+    // from wildcard
+    fn from_wildcard(path: &str) -> Result<Self, StringErr> {
+        // trim suffix *
+        let trim = &path.as_bytes()[..path.len() - 1];
+        let trim = String::from_utf8(trim.to_vec())?;
+        let mut children: Vec<Box<dyn Entry>> = Vec::new();
+
+        // traverse directory, skip sub directories
+        // add .zip, .jar, .ZIP, .JAR entries
+
+        let dir = fs::read_dir(&trim)?;
+
+        for d in dir {
+            let d = d?;
+            let md = fs::metadata(d.path())?;
+
+            if !md.is_file() {
+                continue;
+            }
+
+            let n = Path::new(&trim).join(d.file_name()).into_os_string().into_string()?;
+            if n.ends_with(".zip") || n.ends_with(".jar") || n.ends_with(".ZIP") || n.ends_with(".JAR") {
+                let e = ZipEntry::new(&n)?;
+                children.push(Box::new(e));
+            }
+        }
+
+        Ok(CompositeEntry { children })
+    }
+}
+
+pub fn new_entry(path: &str) -> Result<Box<dyn Entry>, StringErr> {
+    // if contains :
+    if path.contains(':') {
+        let c = CompositeEntry::from_paths(path)?;
+        return Ok(Box::new(c));
+    }
+
+    // if ends with *
+    if path.ends_with('*') {
+        let e = CompositeEntry::from_wildcard(path)?;
+        return Ok(Box::new(e));
+    }
+
+    // if ends with .zip .jar .ZIP .JAR
+    if path.ends_with(".zip") || path.ends_with(".jar") || path.ends_with(".ZIP") || path.ends_with(".JAR") {
+        let d = ZipEntry::new(path)?;
+        return Ok(Box::new(d));
+    }
+
+    let d = DirEntry::new(path)?;
+    Ok(Box::new(d))
+}
+
+#[cfg(test)]
+mod test{
+    use super::CompositeEntry;
+
+    #[test]
+    fn test() {
+        let paths = "a:b:c:d";
+        let sp: Vec<String> = paths.split(':').map(|x| x.to_string()).collect();
+        println!("{:?}", sp);
+    }
+
+    #[test]
+    fn wildcard_test() {
+        CompositeEntry::from_wildcard("./*").unwrap();
+    }
+}
