@@ -1,6 +1,25 @@
 use core::panic;
 use crate::attr::AttrInfo;
 
+pub trait ReadFrom: Sized {
+    fn read_from(p: &mut ClassFileParser, cp: &ConstantPool) -> Self;
+
+    fn read_vec_from(p: &mut ClassFileParser, cp: &ConstantPool) -> Vec<Self> {
+       let n = p.u16() as usize;
+       let mut v: Vec<Self> = Vec::with_capacity(n);
+       for _ in 0..n {
+           v.push(Self::read_from(p, cp));
+       }
+       v
+    }
+}
+
+impl ReadFrom for u16 {
+    fn read_from(p: &mut ClassFileParser, cp: &ConstantPool) -> Self {
+        p.u16()
+    }
+}
+
 #[derive(Default, Debug)]
 // java 类文件
 pub struct ClassFile {
@@ -27,6 +46,9 @@ pub struct ClassFile {
 
     // methods
     methods: Vec<MemberInfo>,
+
+    // class attributes
+    attrs: Vec<AttrInfo>,
 }
 
 #[derive(Default, Debug)]
@@ -34,21 +56,24 @@ pub struct MemberInfo {
     access_flags: u16,
     // refers to constant pool utf8
     name_i: u16,
-    // refers to constant pool utf8
     desc_i: u16,
+    name: String,
+    desc: String,
     attrs: Vec<AttrInfo>,
 }
 
-impl MemberInfo {
-    pub fn read_from(p: &mut ClassFileParser, cp: &ConstantPool) -> MemberInfo {
-        let mut m = MemberInfo { access_flags: p.u16(), name_i: p.u16(), desc_i: p.u16(), attrs: Vec::new() };
+impl ReadFrom for MemberInfo {
+    fn read_from(p: &mut ClassFileParser, cp: &ConstantPool) -> MemberInfo {
+        let a = p.u16();
+        let name_i = p.u16();
+        let desc_i = p.u16();
+        let mut m = MemberInfo { 
+            access_flags: a, name_i: name_i, desc_i: desc_i, attrs: Vec::new() ,
+            name: cp.utf8(name_i as usize).to_string(),
+            desc: cp.utf8(desc_i as usize).to_string(),
+        };
         // parse attributes
-        let attr_len = p.u16();
-        let mut attrs: Vec<AttrInfo> = Vec::with_capacity(attr_len as usize);
-        for _ in 0..attr_len {
-            attrs.push(AttrInfo::read_from(p, cp))
-        }
-        m.attrs = attrs;
+        m.attrs = AttrInfo::read_vec_from(p, cp);
         m
     }
 }
@@ -59,8 +84,8 @@ pub struct ConstantPool {
     infos: Vec<ConstantInfo>,
 }
 
-impl ConstantPool {
-    pub fn read_from(parser: &mut ClassFileParser) -> ConstantPool {
+impl ReadFrom for ConstantPool {
+    fn read_from(parser: &mut ClassFileParser, cp: &ConstantPool) -> ConstantPool {
         // n of constant pool
         let n = parser.u16() as usize;
         let mut infos: Vec<ConstantInfo> = Vec::with_capacity(n);
@@ -68,7 +93,7 @@ impl ConstantPool {
 
         // parse constant infos
         for _ in 1..n {
-            infos.push(Self::read_info(parser))
+            infos.push(ConstantInfo::read_from(parser, cp))
         }
 
         ConstantPool {
@@ -76,7 +101,9 @@ impl ConstantPool {
             infos,
         }
     }
-    
+}
+
+impl ConstantPool {
     pub fn utf8(&self, i: usize) -> &str {
         match self.infos[i as usize] {
             ConstantInfo::Utf8(ref a) => &a,
@@ -92,42 +119,6 @@ impl ConstantPool {
         self.utf8(j as usize)
     }
 
-    fn read_info(p: &mut ClassFileParser) -> ConstantInfo {
-        let tag = p.u8();
-        use ct_info_tag::*;
-        match tag {
-            INTEGER => ConstantInfo::Integer(p.u32() as i32),
-            FLOAT => ConstantInfo::Float(f32::from_bits(p.u32())),
-            LONG => ConstantInfo::Long(p.u64() as i64),
-            DOUBLE => ConstantInfo::Double(f64::from_bits(p.u64())),
-            UTF8 => {
-                let str_len = p.u16() as usize;
-                let bytes = p.bytes(str_len);
-                let utf8 = mutf8::mutf8_to_utf8(bytes).unwrap();
-                let s = String::from_utf8(utf8.into_owned()).unwrap();
-                ConstantInfo::Utf8(s)
-            }
-            STRING => ConstantInfo::String { utf8_i: p.u16() },
-            CLASS => ConstantInfo::Class { name_i: p.u16() },
-            NAME_AND_TYPE => ConstantInfo::NameAndType {
-                name_i: p.u16(),
-                desc_i: p.u16(),
-            },
-            FIELD_REF => ConstantInfo::FieldRef {
-                class_i: p.u16(),
-                name_type_i: p.u16(),
-            },
-            METHOD_REF => ConstantInfo::MethodRef {
-                class_i: p.u16(),
-                name_type_i: p.u16(),
-            },
-            INTERFACE_METHOD_REF => ConstantInfo::IFaceMethodRef {
-                class_i: p.u16(),
-                name_type_i: p.u16(),
-            },
-            _ => panic!("unknown tag {}", tag)
-        }
-    }
 }
 
 // 常量池
@@ -186,6 +177,45 @@ pub enum ConstantInfo {
     },
 }
 
+impl ReadFrom for ConstantInfo {
+    fn read_from(p: &mut ClassFileParser, cp: &ConstantPool) -> ConstantInfo {
+        let tag = p.u8();
+        use ct_info_tag::*;
+        match tag {
+            INTEGER => ConstantInfo::Integer(p.u32() as i32),
+            FLOAT => ConstantInfo::Float(f32::from_bits(p.u32())),
+            LONG => ConstantInfo::Long(p.u64() as i64),
+            DOUBLE => ConstantInfo::Double(f64::from_bits(p.u64())),
+            UTF8 => {
+                let str_len = p.u16() as usize;
+                let bytes = p.bytes(str_len);
+                let utf8 = mutf8::mutf8_to_utf8(bytes).unwrap();
+                let s = String::from_utf8(utf8.into_owned()).unwrap();
+                ConstantInfo::Utf8(s)
+            }
+            STRING => ConstantInfo::String { utf8_i: p.u16() },
+            CLASS => ConstantInfo::Class { name_i: p.u16() },
+            NAME_AND_TYPE => ConstantInfo::NameAndType {
+                name_i: p.u16(),
+                desc_i: p.u16(),
+            },
+            FIELD_REF => ConstantInfo::FieldRef {
+                class_i: p.u16(),
+                name_type_i: p.u16(),
+            },
+            METHOD_REF => ConstantInfo::MethodRef {
+                class_i: p.u16(),
+                name_type_i: p.u16(),
+            },
+            INTERFACE_METHOD_REF => ConstantInfo::IFaceMethodRef {
+                class_i: p.u16(),
+                name_type_i: p.u16(),
+            },
+            _ => panic!("unknown tag {}", tag)
+        }
+    }
+}
+
 mod ct_info_tag {
     pub const CLASS: u8 = 7;
     pub const FIELD_REF: u8 = 9;
@@ -214,31 +244,19 @@ impl ClassFile {
         c.major_version = p.u16();
 
         // 常量池
-        c.cp = ConstantPool::read_from(&mut p);
+        c.cp = ConstantPool::read_from(&mut p, &c.cp);
         // 类访问标志, 类索引, 超类索引, 接口索引 
         c.access_flags = p.u16();
         c.this_class_i = p.u16();
         c.super_class_i = p.u16();
-        let iface_cnt = p.u16();
-        c.interfaces_i = Vec::with_capacity(iface_cnt as usize);
-        for _ in 0..c.interfaces_i.capacity() {
-            c.interfaces_i.push(p.u16());
-        }
+
+        c.interfaces_i = u16::read_vec_from(&mut p, &c.cp);
 
         // fields and methods
-        c.fields = Self::read_members(&mut p, &c.cp);
-        c.methods = Self::read_members(&mut p, &c.cp);
+        c.fields = MemberInfo::read_vec_from(&mut p, &c.cp);
+        c.methods = MemberInfo::read_vec_from(&mut p, &c.cp);
+        c.attrs = AttrInfo::read_vec_from(&mut p, &c.cp);
         c
-    }
-
-    fn read_members(p: &mut ClassFileParser, cp: &ConstantPool) -> Vec<MemberInfo> {
-        let n = p.u16() as usize;
-        let mut v: Vec<MemberInfo> = Vec::with_capacity(n);
-
-        for _ in 0..n {
-            v.push(MemberInfo::read_from(p, cp));
-        }
-        v
     }
 
     // name of this class
@@ -307,16 +325,6 @@ impl ClassFileParser {
         let s = &self.bin[self.off..self.off + len];
         self.off += len;
         s
-    }
-
-    pub fn u16_vec(&mut self) -> Vec<u16> {
-        let len = self.u16();
-        let mut r: Vec<u16> = Vec::with_capacity(len as usize);
-
-        for _ in 0..len {
-            r.push(self.u16());
-        }
-        r
     }
 }
 
