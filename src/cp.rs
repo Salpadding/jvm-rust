@@ -336,6 +336,8 @@ mod test {
     use std::io::Read;
     use std::fs;
 
+    use crate::entry::{DirEntry, Entry};
+
     use super::{ClassFile, ClassFileParser};
 
     fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
@@ -366,8 +368,8 @@ mod test {
 
     #[test]
     fn classfile_test() {
-        let bin = get_test_file();
-        let c = ClassFile::new(bin);
+        let e = DirEntry::new(".").unwrap();
+        let c = ClassFile::new(e.read_class("test/Test").unwrap());
         println!("{:#?}", c);
         assert_eq!(c.magic, 0xCAFEBABE);
 
