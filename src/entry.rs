@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use std::fmt::format;
 use std::fs;
 use std::fs::File;
@@ -7,11 +8,12 @@ use crate::utils;
 
 use crate::StringErr;
 
-pub trait Entry {
+pub trait Entry: std::fmt::Debug {
     // java/lang/Object -> open java/lang/Object.class
     fn read_class(&self, name: &str) -> Option<Vec<u8>>;
 }
 
+#[derive(Debug)]
 pub struct DirEntry {
     abs_dir: String
 }
@@ -54,6 +56,7 @@ impl Entry for DirEntry {
 }
 
 
+#[derive(Debug)]
 pub struct ZipEntry {
     // path for zip
     zip: String,
@@ -121,6 +124,16 @@ impl Entry for CompositeEntry {
             }
         }
         None
+    }
+}
+
+impl std::fmt::Debug for CompositeEntry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for ele in self.children.iter() {
+            ele.fmt(f)?;
+            f.write_char('\n')?;
+        }
+        Ok(())
     }
 }
 
@@ -205,6 +218,7 @@ mod test{
 
     #[test]
     fn wildcard_test() {
-        CompositeEntry::from_wildcard("./*").unwrap();
+        let e = CompositeEntry::from_wildcard("./*").unwrap();
+        println!("{:#?}", e);
     }
 }
