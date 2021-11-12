@@ -37,6 +37,7 @@ mod utils;
 mod attr;
 mod cp;
 mod entry;
+mod runtime;
 
 fn main() {
     println!("Hello, world!");

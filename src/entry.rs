@@ -1,5 +1,4 @@
 use std::fmt::Write;
-use std::fmt::format;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
@@ -37,8 +36,9 @@ impl DirEntry {
 
 impl Entry for DirEntry {
     fn read_class(&self, name: &str) -> Option<Vec<u8>> {
+        use crate::utils::norm_path;
         // join path
-        let file = format!("{}.class", name);
+        let file = format!("{}.class", norm_path(name));
         let p = Path::new(&self.abs_dir).join(&file);
         let m = fs::metadata(&p);
 
@@ -79,7 +79,7 @@ impl ZipEntry {
 
 impl Entry for ZipEntry {
     fn read_class(&self, name: &str) -> Option<Vec<u8>> {
-        let full_name = format!("{}.class", name);
+       let full_name = format!("{}.class", name);
        let file = File::open(&self.zip);
        if file.is_err() {
            return None;
@@ -95,6 +95,7 @@ impl Entry for ZipEntry {
 
        for i in 0..archive.len() {
            let mut file = archive.by_index(i).unwrap();
+           println!("name = {}", file.name());
            if file.name() !=  &full_name {
                continue;
            }
@@ -172,7 +173,7 @@ impl CompositeEntry {
             }
 
             let n = Path::new(&trim).join(d.file_name()).into_os_string().into_string()?;
-            if n.ends_with(".zip") || n.ends_with(".jar") || n.ends_with(".ZIP") || n.ends_with(".JAR") {
+            if  n.ends_with(".jar") || n.ends_with(".JAR") {
                 let e = ZipEntry::new(&n)?;
                 children.push(Box::new(e));
             }
@@ -207,18 +208,11 @@ pub fn new_entry(path: &str) -> Result<Box<dyn Entry>, StringErr> {
 
 #[cfg(test)]
 mod test{
-    use super::CompositeEntry;
+    use super::Entry;
 
     #[test]
-    fn test() {
-        let paths = "a:b:c:d";
-        let sp: Vec<String> = paths.split(':').map(|x| x.to_string()).collect();
-        println!("{:?}", sp);
-    }
-
-    #[test]
-    fn wildcard_test() {
-        let e = CompositeEntry::from_wildcard("./*").unwrap();
-        println!("{:#?}", e);
+    fn test_dir_entry() {
+        let e = super::DirEntry::new(".").unwrap();
+        e.read_class("test/Test").unwrap();
     }
 }
