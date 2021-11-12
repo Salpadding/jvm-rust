@@ -1,4 +1,7 @@
+use std::fmt::format;
 use std::fs;
+use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 use crate::utils;
 
@@ -47,5 +50,60 @@ impl Entry for DirEntry {
         }
 
         utils::read_file(p)
+    }
+}
+
+
+pub struct ZipEntry {
+    // path for zip
+    zip: String,
+}
+
+impl ZipEntry {
+    fn new(path: &str) -> Result<ZipEntry, StringErr>{
+        let m = fs::metadata(path)?;
+        if !m.is_file() {
+            return err!("create zip entry failed: {} is not a regular file", path);
+        }
+
+        let buf = fs::canonicalize(path).unwrap();
+        let p = buf.into_os_string().into_string().unwrap();
+
+        Ok(ZipEntry { zip: p })
+    }
+}
+
+
+impl Entry for ZipEntry {
+    fn read_class(&self, name: &str) -> Option<Vec<u8>> {
+        let full_name = format!("{}.class", name);
+       let file = File::open(&self.zip);
+       if file.is_err() {
+           return None;
+       }
+
+       let file = file.unwrap();
+       let archive = zip::ZipArchive::new(file);
+
+       if archive.is_err() {
+           return None;
+       }
+       let mut archive = archive.unwrap();
+
+       for i in 0..archive.len() {
+           let mut file = archive.by_index(i).unwrap();
+           if file.name() !=  &full_name {
+               continue;
+           }
+
+           // file found
+           // read all from file
+           let mut r: Vec<u8> = Vec::new();
+           file.read_to_end(&mut r).unwrap();
+
+           return Some(r);
+       }
+
+       return None;
     }
 }
