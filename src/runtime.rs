@@ -1,28 +1,118 @@
+use std::borrow::Borrow;
+use std::{cell::RefCell, cell::Ref};
+use std::rc::Rc;
+
+use crate::heap::{ClassLoader, ClassMember};
+use crate::op::OpCode;
+
+pub struct BytesReader<'a> {
+    bytes: &'a [u8],
+    pc: usize,
+}
+
+macro_rules! br_un {
+    ($a: ident, $w: expr) => {
+       pub fn $a(&mut self) -> $a {
+            let s = &self.bytes[self.pc..self.pc + $w];
+            self.pc += $w;
+            let mut b = [0u8; $w];
+            b.copy_from_slice(s);
+            $a::from_be_bytes(b)
+       } 
+    };
+}
+
+impl <'a> BytesReader<'a> {
+    pub fn u8(&mut self) -> u8 {
+        let u = self.bytes[self.pc];
+        self.pc += 1;
+        u
+    }
+
+    br_un!(u16, 2);
+    br_un!(u32, 4);
+}
+
 // jvm runtime representation
+#[derive(Debug)]
 pub struct Jvm {
-
+    loader: ClassLoader,
 }
 
+
+#[derive(Debug)]
 pub struct JThread {
-    pc: u32,
-    stack: JStack,
+    pub pc: u32,
+    pub stack: JStack,
+    pub vm: Rc<RefCell<Jvm>>,
 }
 
+
+
+impl JThread {
+    pub fn cur_frame(&self) -> Rc<RefCell<JFrame>> {
+        self.stack.cur_frame()
+    }
+
+    pub fn run(&mut self) {
+        use crate::ins::Constant;
+        loop {
+            let f = self.cur_frame();
+            let method = {
+                let b: Ref<JFrame> = RefCell::borrow(&*f);
+                b.method.clone()
+            };
+            // let pc = f.next_pc();
+            let mut rd = BytesReader {
+                bytes: &method.code,
+                pc: 0,
+            };
+
+            let op: OpCode = rd.u8().into();
+            op.con(&mut rd, self, f);
+        }
+    }
+}
+
+// TODO: limit stack size
+#[derive(Debug, Default)]
 pub struct JStack {
-    max_size: usize,
-    size: usize,
-    top: Option<JFrame>,
+    pub max_size: usize,
+    pub frames: Vec<Rc<RefCell<JFrame>>>,
+    pub size: usize,
+}
+
+impl JStack {
+    fn push_frame(&mut self, frame: JFrame) {
+        self.frames[self.size] = Rc::new(RefCell::new(frame));
+        self.size += 1;
+    }
+
+    fn pop_frame(&mut self) -> Rc<RefCell<JFrame>> {
+        let top = self.frames[self.size - 1].clone();
+        self.size -= 1;
+        top
+    }
+
+    fn cur_frame(&self) -> Rc<RefCell<JFrame>> {
+        self.frames[self.size - 1].clone()
+    }
 }
 
 
+#[derive(Debug, Default)]
 pub struct JFrame {
-    lower: Option<Box<JFrame>>,
-    local_vars: Vec<u64>,
+    pub local_vars: Vec<u64>,
+    pub stack: OpStack,
+    pub method: Rc<ClassMember>,
 }
 
+
+
+#[derive(Debug, Default)]
 pub struct OpStack {
-    slots: Vec<u64>,
-    size: usize,
+    pub slots: Vec<u64>,
+    pub size: usize,
 }
 
 impl OpStack {
@@ -64,6 +154,22 @@ impl OpStack {
    pub fn pop_f64(&mut self) -> f64 {
        f64::from_bits(self.pop_u64())
    }
+
+   pub fn push_nil(&mut self) {
+       self.slots[self.size] = 0;
+       self.size += 1;
+   }
+
+   pub fn push_ref(&mut self, v: u64) {
+       self.slots[self.size] = v;
+       self.size += 1;
+   }
+
+   pub fn pop_ref(&mut self) -> u64 {
+       let r = self.slots[self.size - 1];
+       self.size -= 1;
+       r
+   }
 }
 
 // Each frame (§2.6) contains an array of variables known as its local variables. The length of the local variable array of a frame is determined at compile-time and supplied in the binary representation of a class or interface along with the code for the method associated with the frame (§4.7.3).
@@ -102,6 +208,9 @@ pub trait Slots {
     fn get_f64(&self, i: usize) -> f64{
         f64::from_bits(self.get_u64(i))
     }
+
+    fn get_ref(&self, i: usize) -> u64;
+    fn set_ref(&mut self, i: usize, v: u64);
 }
 
 impl Slots for Vec<u64> {
@@ -111,6 +220,14 @@ impl Slots for Vec<u64> {
 
     fn get_u32(&self, i: usize) -> u32 {
         self[i] as u32
+    }
+
+    fn get_ref(&self, i: usize) -> u64 {
+        self[i]
+    }
+
+    fn set_ref(&mut self, i: usize, v: u64) {
+        self[i] = v;
     }
 }
 

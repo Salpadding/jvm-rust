@@ -33,11 +33,14 @@ im_err!(std::io::Error);
 im_err!(FromUtf8Error);
 im_err!(OsString);
 
+mod op;
 mod utils;
 mod attr;
 mod cp;
 mod entry;
 mod runtime;
+mod heap;
+mod ins;
 
 fn main() {
     println!("Hello, world!");

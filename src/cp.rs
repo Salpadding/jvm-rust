@@ -24,42 +24,42 @@ impl ReadFrom for u16 {
 // java 类文件
 pub struct ClassFile {
     // 魔数, CAFEBABE
-    magic: u32,
+    pub magic: u32,
     // 次版本号, 通常是 0
-    minor_version: u16,
+    pub minor_version: u16,
     // 主版本号, 对于 jdk8 编译出的 class 文件通常是 52
-    major_version: u16,
+    pub major_version: u16,
 
     // 常量池
-    cp: ConstantPool,
+    pub cp: ConstantPool,
     // 类访问标志
-    access_flags: u16,
+    pub access_flags: u16,
     // 类索引, refers to cp ClassInfo
-    this_class_i: u16,
+    pub this_class_i: u16,
     // 超类索引 refers to cp ClassInfo
-    super_class_i: u16,
+    pub super_class_i: u16,
     // 接口索引 refers to cp ClassInfo
-    interfaces_i: Vec<u16>,
+    pub interfaces_i: Vec<u16>,
 
     // fields
-    fields: Vec<MemberInfo>,
+    pub fields: Vec<MemberInfo>,
 
     // methods
-    methods: Vec<MemberInfo>,
+    pub methods: Vec<MemberInfo>,
 
     // class attributes
-    attrs: Vec<AttrInfo>,
+    pub attrs: Vec<AttrInfo>,
 }
 
 #[derive(Default, Debug)]
 pub struct MemberInfo {
-    access_flags: u16,
+    pub access_flags: u16,
     // refers to constant pool utf8
-    name_i: u16,
-    desc_i: u16,
-    name: String,
-    desc: String,
-    attrs: Vec<AttrInfo>,
+    pub name_i: u16,
+    pub desc_i: u16,
+    pub name: String,
+    pub desc: String,
+    pub attrs: Vec<AttrInfo>,
 }
 
 impl ReadFrom for MemberInfo {
@@ -103,6 +103,30 @@ impl ReadFrom for ConstantPool {
     }
 }
 
+macro_rules! cp_member{
+    ($n: ident, $t: path) => {
+        // field index -> (class, name, desc)
+        pub fn $n(&self, i: usize) -> (&str, &str, &str) {
+            let j = match self.infos[i as usize] {
+                $t { class_i, name_type_i } => (class_i, name_type_i),
+                _ => panic!("invalid index")
+            };
+
+            let name_type = match self.infos[j.1 as usize] {
+                ConstantInfo::NameAndType { name_i, desc_i} => (name_i, desc_i),
+                _ => panic!("invalid name type index")
+            };
+
+            (
+                self.class(j.0 as usize),
+                self.utf8(name_type.0 as usize),
+                self.utf8(name_type.1 as usize)
+            )
+        }
+
+    };
+}
+
 impl ConstantPool {
     pub fn utf8(&self, i: usize) -> &str {
         match self.infos[i as usize] {
@@ -119,6 +143,45 @@ impl ConstantPool {
         self.utf8(j as usize)
     }
 
+    pub fn u32(&self, i: usize) -> u32 {
+        match self.infos[i] {
+            ConstantInfo::Integer(i) => i as u32,
+            _ => panic!("invalid u32 index")
+        }
+    }
+
+    pub fn f32(&self, i: usize) -> f32 {
+        match self.infos[i] {
+            ConstantInfo::Float(i) => i,
+            _ => panic!("invalid integer index")
+        }
+    }
+
+    pub fn u64(&self, i: usize) -> u64 {
+        match self.infos[i] {
+            ConstantInfo::Long(i) => i as u64,
+            _ => panic!("invalid u64 index")
+        }
+    }
+
+    pub fn f64(&self, i: usize) -> f64 {
+        match self.infos[i] {
+            ConstantInfo::Double(i) => i,
+            _ => panic!("invalid f64 index")
+        }
+    }
+
+    pub fn string(&self, i: usize) -> &str {
+        let j = match self.infos[i as usize] {
+            ConstantInfo::String { utf8_i}  => utf8_i as usize,
+            _ => panic!("invalid string index")
+        };
+        self.utf8(j as usize)
+    }
+
+    cp_member!(field, ConstantInfo::FieldRef);
+    cp_member!(method, ConstantInfo::MethodRef);
+    cp_member!(iface_m, ConstantInfo::IFaceMethodRef);
 }
 
 // 常量池
@@ -129,9 +192,9 @@ impl ConstantPool {
 pub enum ConstantInfo {
     // since index ranges from 1~n-1, fill blank into zero entry
     Blank,
-    Integer(i32),
+    Integer(u32),
     Float(f32),
-    Long(i64),
+    Long(u64),
     Double(f64),
     Utf8(String),
     String {
@@ -182,9 +245,9 @@ impl ReadFrom for ConstantInfo {
         let tag = p.u8();
         use ct_info_tag::*;
         match tag {
-            INTEGER => ConstantInfo::Integer(p.u32() as i32),
+            INTEGER => ConstantInfo::Integer(p.u32()),
             FLOAT => ConstantInfo::Float(f32::from_bits(p.u32())),
-            LONG => ConstantInfo::Long(p.u64() as i64),
+            LONG => ConstantInfo::Long(p.u64()),
             DOUBLE => ConstantInfo::Double(f64::from_bits(p.u64())),
             UTF8 => {
                 let str_len = p.u16() as usize;
@@ -304,7 +367,7 @@ macro_rules! cp_u_n {
 
 impl ClassFileParser {
     pub fn new(bin: Vec<u8>) -> ClassFileParser {
-        let mut c = ClassFileParser {
+        let c = ClassFileParser {
             bin: bin,
             off: 0,
         };

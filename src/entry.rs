@@ -95,7 +95,6 @@ impl Entry for ZipEntry {
 
        for i in 0..archive.len() {
            let mut file = archive.by_index(i).unwrap();
-           println!("name = {}", file.name());
            if file.name() !=  &full_name {
                continue;
            }

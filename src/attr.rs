@@ -76,11 +76,11 @@ impl ReadFrom for Exception {
 
 #[derive(Debug, Default)]
 pub struct Code {
-    max_stack: u16,
-    max_locals: u16,
-    code: Vec<u8>,
-    exceptions: Vec<Exception>,
-    attrs: Vec<AttrInfo>,
+    pub max_stack: u16,
+    pub max_locals: u16,
+    pub code: Vec<u8>,
+    pub exceptions: Vec<Exception>,
+    pub attrs: Vec<AttrInfo>,
 }
 
 impl ReadFrom for Code {
