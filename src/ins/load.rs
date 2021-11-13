@@ -31,9 +31,9 @@ macro_rules! aload_n {
     ($mf: ident, $n: expr) => {
        {
             let v = {
-                    $mf.local_vars.get_ref($n)
+                    $mf.local_vars.get_cell($n)
             };
-            $mf.stack.push_ref(v);
+            $mf.stack.push_cell(v);
        } 
     };
 }
@@ -58,7 +58,7 @@ impl Load for OpCode {
         match self {
             iload | fload => xload!(rd, mf, get_u32, push_u32),
             lload | dload => xload!(rd, mf, get_u64, push_u64),
-            aload => xload!(rd, mf, get_ref, push_ref),
+            aload => xload!(rd, mf, get_cell, push_cell),
             
             iload_0 | fload_0 => iload_n!(mf, 0),
             iload_1 | fload_1 => iload_n!(mf, 1),

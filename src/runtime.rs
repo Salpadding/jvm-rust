@@ -160,12 +160,12 @@ impl OpStack {
        self.size += 1;
    }
 
-   pub fn push_ref(&mut self, v: u64) {
+   pub fn push_cell(&mut self, v: u64) {
        self.slots[self.size] = v;
        self.size += 1;
    }
 
-   pub fn pop_ref(&mut self) -> u64 {
+   pub fn pop_cell(&mut self) -> u64 {
        let r = self.slots[self.size - 1];
        self.size -= 1;
        r
@@ -209,8 +209,8 @@ pub trait Slots {
         f64::from_bits(self.get_u64(i))
     }
 
-    fn get_ref(&self, i: usize) -> u64;
-    fn set_ref(&mut self, i: usize, v: u64);
+    fn get_cell(&self, i: usize) -> u64;
+    fn set_cell(&mut self, i: usize, v: u64);
 }
 
 impl Slots for Vec<u64> {
@@ -222,11 +222,11 @@ impl Slots for Vec<u64> {
         self[i] as u32
     }
 
-    fn get_ref(&self, i: usize) -> u64 {
+    fn get_cell(&self, i: usize) -> u64 {
         self[i]
     }
 
-    fn set_ref(&mut self, i: usize, v: u64) {
+    fn set_cell(&mut self, i: usize, v: u64) {
         self[i] = v;
     }
 }
