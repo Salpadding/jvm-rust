@@ -80,8 +80,7 @@ impl ReadFrom for MemberInfo {
 
 #[derive(Default, Debug)]
 pub struct ConstantPool {
-    infos: Vec<ConstantInfo>,
-
+    pub infos: Vec<ConstantInfo>,
 }
 
 impl ReadFrom for ConstantPool {
@@ -178,9 +177,9 @@ impl ConstantPool {
         self.utf8(j as usize)
     }
 
-    cp_member!(field, ConstantInfo::FieldRef);
-    cp_member!(method, ConstantInfo::MethodRef);
-    cp_member!(iface_m, ConstantInfo::IFaceMethodRef);
+    cp_member!(field_ref, ConstantInfo::FieldRef);
+    cp_member!(method_ref, ConstantInfo::MethodRef);
+    cp_member!(iface_ref, ConstantInfo::IFaceMethodRef);
 }
 
 // 常量池

@@ -2,7 +2,8 @@ use crate::cp::{ClassFile, ConstantPool, MemberInfo};
 use crate::attr::AttrInfo;
 use crate::entry::Entry;
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::rc::Rc;
+use std::cell::RefCell;
 use crate::{StringErr, entry};
 
 impl From<ClassFile> for Class {
@@ -12,8 +13,9 @@ impl From<ClassFile> for Class {
        r.name = c.this_class().to_string();
        r.super_name = c.super_class().to_string();
        r.iface_names = c.interfaces_i.iter().map(|x| c.cp.class(*x as usize).to_string()).collect();
-       r.fields = c.fields.iter().map(|x| Arc::new(x.into())).collect();
-       r.methods = c.methods.iter().map(|x| Arc::new(x.into())).collect();
+       r.fields = c.fields.iter().map(|x| Rc::new(x.into())).collect();
+       r.methods = c.methods.iter().map(|x| Rc::new(x.into())).collect();
+       r.sym_refs = vec![None; c.cp.infos.len()];
 
        core::mem::swap(&mut c.cp, &mut r.cp);
        r
@@ -46,7 +48,7 @@ impl From<&MemberInfo> for ClassMember {
 }
 
 pub struct Object {
-    pub class: Arc<Class>,
+    pub class: Rc<RefCell<Class>>,
     pub fields: Vec<u64>,
 }
 
@@ -69,20 +71,23 @@ pub struct Class {
     pub super_name: String,
     pub iface_names: Vec<String>,
     pub cp: ConstantPool,
-    pub fields: Vec<Arc<ClassMember>>,
-    pub methods: Vec<Arc<ClassMember>>,
+    pub fields: Vec<Rc<ClassMember>>,
+    pub methods: Vec<Rc<ClassMember>>,
 
-    pub super_class: Option<Arc<Class>>,
-    pub interfaces: Vec<Arc<Class>>,
+    pub super_class: Option<Rc<RefCell<Class>>>,
+    pub interfaces: Vec<Rc<RefCell<Class>>>,
 
-    pub static_fields: Vec<Arc<ClassMember>>,
+    pub static_fields: Vec<Rc<ClassMember>>,
     pub static_vars: Vec<u64>,
 
-    pub ins_fields: Vec<Arc<ClassMember>>,
+    pub ins_fields: Vec<Rc<ClassMember>>,
+
+    // runtime loaded symbols
+    pub sym_refs: Vec<Option<SymRef>>,
 }
 
 impl Class {
-    pub fn main_method(&self) -> Option<Arc<ClassMember>> {
+    pub fn main_method(&self) -> Option<Rc<ClassMember>> {
         for m in self.methods.iter() {
             if &m.name == "main" && &m.desc == "([Ljava/lang/String;)V" && m.access_flags.is_static(){
                 return Some(m.clone());
@@ -98,13 +103,59 @@ impl Class {
     fn count_ins_fields(&self) -> usize {
         let base = match self.super_class {
             None => 0,
-            Some(ref c) => c.count_ins_fields(),
+            Some(ref c) => c.borrow().count_ins_fields(),
         };
         base + self.fields.iter().filter(|x| !x.access_flags.is_static()).count()
     }
 
-    fn get_ins_field(&self, i: usize) -> Arc<ClassMember> {
+    fn get_ins_field(&self, i: usize) -> Rc<ClassMember> {
         self.ins_fields[i].clone()
+    }
+
+    pub fn set_static(&mut self, field: &str, v: u64) {
+        for i in 0..self.static_fields.len() {
+            let f = &self.static_fields[i];
+
+            if &f.name == field {
+                self.static_vars[i] = v;
+            }
+        }
+
+        println!("static vars of class {} = {:?}", self.name, self.static_vars);
+    }
+
+    pub fn set_instance(&self, obj: &mut Object, field: &str, v: u64) {
+        for i in 0..self.ins_fields.len() {
+            let f = &self.ins_fields[i];
+
+            if &f.name == field {
+                obj.fields[i] = v;
+            }
+        }
+        println!("set field {} of class {}", field, self.name);
+        println!("instance vars of class {} = {:?}", self.name, obj.fields);
+    }
+
+    pub fn get_static(&self, field: &str) -> u64 {
+        for i in 0..self.static_fields.len() {
+            let f = &self.static_fields[i];
+
+            if &f.name == field {
+                return self.static_vars[i];
+            }
+        }
+        return 0;
+    }
+
+    pub fn get_instance(&self, obj: &Object, field: &str) -> u64 {
+        for i in 0..self.ins_fields.len() {
+            let f = &self.ins_fields[i];
+
+            if &f.name == field {
+                return obj.fields[i];
+            }
+        }
+        return 0;
     }
 
     fn init_finals(&mut self) {
@@ -198,7 +249,7 @@ mod flags {
 #[derive(Debug)]
 pub struct ClassLoader {
     entry: Box<dyn Entry>,
-    loaded: BTreeMap<String, Arc<Class>>,
+    loaded: BTreeMap<String, Rc<RefCell<Class>>>,
 }
 
 
@@ -214,7 +265,7 @@ impl ClassLoader {
         )
     }
 
-    pub fn load(&mut self, name: &str) -> Arc<Class> {
+    pub fn load(&mut self, name: &str) -> Rc<RefCell<Class>> {
         match self.loaded.get(name) {
            Some(cl)  => return cl.clone(),
            _ => {},
@@ -224,7 +275,7 @@ impl ClassLoader {
         self.define(name, bytes)
     }
 
-    fn define(&mut self, name: &str, bytes: Vec<u8>) -> Arc<Class> {
+    fn define(&mut self, name: &str, bytes: Vec<u8>) -> Rc<RefCell<Class>> {
         let file = ClassFile::new(bytes);
         let mut cl: Class = file.into();
 
@@ -233,7 +284,7 @@ impl ClassLoader {
             cl.super_class = Some(self.load(&cl.super_name));
         }
 
-        let mut ifaces: Vec<Arc<Class>> = Vec::with_capacity(cl.iface_names.len());
+        let mut ifaces: Vec<Rc<RefCell<Class>>> = Vec::with_capacity(cl.iface_names.len());
         for n in cl.iface_names.iter() {
             ifaces.push(self.load(n));
         }
@@ -246,18 +297,18 @@ impl ClassLoader {
         // init instance fields
         let base = match cl.super_class {
             None => 0,
-            Some(ref c) => c.count_ins_fields(),
+            Some(ref c) => c.borrow().count_ins_fields(),
         };
         
         for i in 0..base {
-            cl.ins_fields.push(cl.super_class.as_ref().unwrap().get_ins_field(i));
+            cl.ins_fields.push(cl.super_class.as_ref().unwrap().borrow().get_ins_field(i));
         }
 
         for f in cl.fields.iter().filter(|x| !x.access_flags.is_static()) {
            cl.ins_fields.push(f.clone());
         }
 
-        let arc = Arc::new(cl);
+        let arc = Rc::new(RefCell::new(cl));
         let cloned = arc.clone();
         self.loaded.insert(name.to_string(), arc);
         cloned
@@ -280,6 +331,69 @@ impl Heap {
         )
     }
 
+    pub fn class_ref<'a> (&mut self, cur: &'a mut Class, i: usize) -> &'a SymRef {
+        match cur.sym_refs[i] {
+            Some(_) => { return cur.sym_refs[i].as_ref().unwrap(); }
+            _ => {}
+        };
+
+        let name = cur.cp.class(i);
+        let class = self.loader.load(name);
+        let sym = SymRef {
+            class,
+            name: name.to_string(),
+            desc: "".to_string(),
+            field_i: 0,
+        };
+
+        cur.sym_refs[i] = Some(sym);
+        cur.sym_refs[i].as_ref().unwrap()
+    }
+
+    pub fn field_ref<'a>(&mut self, cur: &'a mut Class, i: usize) -> &'a SymRef{
+        match cur.sym_refs[i] {
+            Some(_) => { return cur.sym_refs[i].as_ref().unwrap(); }
+            _ => {}
+        };
+
+        let (class_name, name, desc) = cur.cp.field_ref(i);
+        let class = self.loader.load(class_name);
+        let mut sym = SymRef {
+            class: class.clone(),
+            name: name.to_string(),
+            desc: desc.to_string(),
+            field_i: 0,
+        };
+
+        cur.sym_refs[i] = Some(sym);
+        cur.sym_refs[i].as_ref().unwrap()
+    }
+
+    pub fn method_ref<'a>(&mut self, cur: &'a mut Class, i: usize) -> &'a SymRef {
+        todo!()
+    }
+    
+    pub fn iface_ref<'a>(&mut self, cur: &'a mut Class, i: usize) -> &'a SymRef {
+        todo!()
+    }
+
+    pub fn new_object(&self, class: Rc<RefCell<Class>>) -> Box<Object> {
+        let obj = Object {
+            class: class.clone(),
+            fields: vec![0u64; class.borrow().ins_fields.len()]
+        };
+
+        let obj = Box::new(obj);
+        obj
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SymRef {
+    pub class: Rc<RefCell<Class>>,
+    pub name: String,
+    pub desc: String,
+    pub field_i: usize,
 }
 
 #[cfg(test)]

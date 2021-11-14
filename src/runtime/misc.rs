@@ -256,4 +256,10 @@ mod test {
         let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
         jvm.run_class("test/Gauss").unwrap();
     }
+
+    #[test]
+    fn test_jvm_obj() {
+        let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
+        jvm.run_class("test/MyObject").unwrap();
+    }
 }

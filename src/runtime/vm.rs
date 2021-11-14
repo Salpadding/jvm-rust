@@ -1,7 +1,5 @@
-
 use std::{cell::RefCell, cell::Ref};
 use std::rc::Rc;
-use std::sync::Arc;
 
 use crate::StringErr;
 use crate::heap::{Class, ClassLoader, ClassMember, Heap};
@@ -37,9 +35,9 @@ impl Jvm {
         };
 
         // get main method
-        let main = c.main_method();
+        let main = c.borrow().main_method();
         if main.is_none() {
-            return err!("class {} has no main method", c.name);
+            return err!("class {} has no main method", &c.borrow().name);
         }
 
         self.thread.stack.push_frame(JFrame::new(self.heap.clone(), c, main.unwrap()));
@@ -153,13 +151,13 @@ impl JStack {
 pub struct JFrame {
     pub local_vars: Vec<u64>,
     pub stack: OpStack,
-    pub method: Arc<ClassMember>,
-    pub class: Arc<Class>,
+    pub method: Rc<ClassMember>,
+    pub class: Rc<RefCell<Class>>,
     pub heap: Rc<RefCell<Heap>>,
 }
 
 impl JFrame {
-    pub fn new(heap: Rc<RefCell<Heap>>, class: Arc<Class>, method: Arc<ClassMember>) -> Self {
+    pub fn new(heap: Rc<RefCell<Heap>>, class: Rc<RefCell<Class>>, method: Rc<ClassMember>) -> Self {
         Self {
             local_vars: vec![0u64; method.max_locals],
             stack: OpStack { slots: vec![0u64; method.max_stack], size: 0 },
@@ -168,4 +166,6 @@ impl JFrame {
             heap,
         }
     }
+
+
 }
