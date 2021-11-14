@@ -5,6 +5,7 @@ mod stack;
 mod math;
 mod conv;
 mod cmp;
+mod ctl;
 
 use crate::{op::OpCode, runtime::{JFrame, JThread, Jvm, BytesReader}};
 use std::rc::Rc;
@@ -37,4 +38,8 @@ pub trait Conversion {
 
 pub trait Compare {
     fn cmp(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>);
+}
+
+pub trait Control {
+    fn ctl(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>);
 }

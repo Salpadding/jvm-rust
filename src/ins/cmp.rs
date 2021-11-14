@@ -28,30 +28,42 @@ macro_rules! cmp {
 }
 
 macro_rules! br_1 {
-    ($rd: ident, $mf: ident, $x: ident, $e: expr) => {
+    ($rd: ident, $mf: ident, $p: ident, $x: ident, $e: expr) => {
         {
-            let off = $rd.u16() as usize; 
+            let off = $rd.i16() as isize; 
             let $x = {
-                $mf.stack.pop_i32()
+                $mf.stack.$p()
             };
 
             if $e {
-                $rd.pc += off;
+                $rd.branch(off);
             }
         }
+    };
+}
+
+macro_rules! br_1i {
+    ($rd: ident, $mf: ident, $x: ident, $e: expr) => {
+       br_1!($rd, $mf, pop_i32, $x, $e) 
+    };
+}
+
+macro_rules! br_1a {
+    ($rd: ident, $mf: ident, $x: ident, $e: expr) => {
+       br_1!($rd, $mf, pop_cell, $x, $e) 
     };
 }
 
 macro_rules! br_2 {
     ($rd: ident, $mf: ident, $p: ident, $x: ident, $y: ident, $e: expr) => {
         {
-            let off = $rd.u16() as usize; 
+            let off = $rd.i16() as isize; 
             let ($y, $x) = {
                 ($mf.stack.$p(), $mf.stack.$p())
             };
 
             if $e {
-                $rd.pc += off;
+                $rd.branch(off);
             }
         }
     };
@@ -81,12 +93,12 @@ impl Compare for OpCode {
             fcmpg => cmp!(mf, pop_f32, 1),
             dcmpl => cmp!(mf, pop_f64, -1),
             dcmpg => cmp!(mf, pop_f64, 1),
-            ifeq => br_1!(rd, mf, x, x == 0),
-            ifne => br_1!(rd, mf, x, x != 0),
-            iflt => br_1!(rd, mf, x, x < 0),
-            ifge => br_1!(rd, mf, x, x >= 0),
-            ifgt => br_1!(rd, mf, x, x > 0),
-            ifle => br_1!(rd, mf, x, x <= 0),
+            ifeq => br_1i!(rd, mf, x, x == 0),
+            ifne => br_1i!(rd, mf, x, x != 0),
+            iflt => br_1i!(rd, mf, x, x < 0),
+            ifge => br_1i!(rd, mf, x, x >= 0),
+            ifgt => br_1i!(rd, mf, x, x > 0),
+            ifle => br_1i!(rd, mf, x, x <= 0),
             if_icmpeq => br_2i!(rd, mf, x, y, x == y),
             if_icmpne => br_2i!(rd, mf, x, y, x != y),
             if_icmplt => br_2i!(rd, mf, x, y, x < y),
@@ -95,6 +107,9 @@ impl Compare for OpCode {
             if_icmple => br_2i!(rd, mf, x, y, x <= y),
             if_acmpeq => br_2a!(rd, mf, x, y, x == y),
             if_acmpne => br_2a!(rd, mf, x, y, x != y),
+
+            ifnull => br_1a!(rd, mf, x, x == 0),
+            ifnonnull => br_1a!(rd, mf, x, x != 0),
             _ => {
                 panic!("invalid op {:?}", self);
             }

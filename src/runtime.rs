@@ -31,6 +31,36 @@ impl <'a> BytesReader<'a> {
 
     br_un!(u16, 2);
     br_un!(u32, 4);
+
+    pub fn i16(&mut self) -> i16 {
+        self.u16() as i16
+    }
+
+    pub fn i32(&mut self) -> i32 {
+        self.u32() as i32
+    }
+
+    pub fn skip_padding(&mut self) {
+        loop {
+            if self.pc % 4 != 0 {
+                self.pc += 1;
+            } else {
+                break;
+            }
+        }
+    }
+
+    pub fn read_u32s(&mut self, n: usize) -> Vec<u32> {
+        let mut r: Vec<u32> = Vec::with_capacity(n);
+        for _ in 0..n {
+            r.push(self.u32());
+        }
+        r
+    }
+
+    pub fn branch(&mut self, off: isize) {
+        self.pc = ((self.pc as isize) + off) as usize;
+    }
 }
 
 // jvm runtime representation
