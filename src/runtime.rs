@@ -6,8 +6,8 @@ use crate::heap::{ClassLoader, ClassMember};
 use crate::op::OpCode;
 
 pub struct BytesReader<'a> {
-    bytes: &'a [u8],
-    pc: usize,
+    pub bytes: &'a [u8],
+    pub pc: usize,
 }
 
 macro_rules! br_un {
