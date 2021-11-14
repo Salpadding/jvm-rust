@@ -1,6 +1,6 @@
 use crate::ins::Control;
 use crate::op::OpCode;
-use crate::runtime::{BytesReader, JThread, JFrame};
+use crate::runtime::{misc::BytesReader, vm::JThread, vm::JFrame};
 use std::rc::Rc;
 use std::cell::{RefCell, RefMut};
 
@@ -76,7 +76,6 @@ impl LookupSwitch {
 impl Control for OpCode {
     fn ctl(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>) {
         use crate::op::OpCode::*;
-        use crate::runtime::Slots;
         let mut mf = frame.borrow_mut();
 
         match self {

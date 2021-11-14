@@ -6,8 +6,11 @@ mod math;
 mod conv;
 mod cmp;
 mod ctl;
+mod refs;
 
-use crate::{op::OpCode, runtime::{JFrame, JThread, Jvm, BytesReader}};
+use crate::runtime::{misc::BytesReader, vm::JThread, vm::JFrame};
+use crate::op::OpCode;
+
 use std::rc::Rc;
 use core::cell::RefCell;
 
@@ -48,6 +51,10 @@ pub trait Ins {
     fn step(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>, wide: bool);
 }
 
+pub trait Refs {
+    fn refs(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>);
+}
+
 
 impl Ins for u8 {
     fn step(self, rd: &mut BytesReader,  th: &mut JThread, c: Rc<RefCell<JFrame>>, wide: bool) {
@@ -67,6 +74,9 @@ impl Ins for u8 {
                th.stack.pop_frame();
                println!("return locals = {:?}", locals);
            }
+           0xb2..=0xc3 => {
+                op.refs(rd, th, c);
+           },
            _ => panic!("invalid op {}", self)
         }
     }

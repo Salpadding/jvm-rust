@@ -1,6 +1,6 @@
 use crate::ins::Store;
 use crate::op::OpCode;
-use crate::runtime::{BytesReader, JThread, JFrame};
+use crate::runtime::{misc::BytesReader, vm::JThread, vm::JFrame, misc::Slots};
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -52,7 +52,6 @@ macro_rules! astore_n {
 impl Store for OpCode {
     fn store(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>, w: bool) {
         use crate::op::OpCode::*;
-        use crate::runtime::Slots;
         let mut mf = frame.borrow_mut();
 
         match self {

@@ -1,6 +1,6 @@
 use crate::ins::Load;
 use crate::op::OpCode;
-use crate::runtime::{BytesReader, JThread, JFrame};
+use crate::runtime::{misc::BytesReader, vm::JThread, vm::JFrame};
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -52,7 +52,7 @@ macro_rules! lload_n {
 impl Load for OpCode {
     fn load(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>, w: bool) {
         use crate::op::OpCode::*;
-        use crate::runtime::Slots;
+        use crate::runtime::misc::Slots;
         let mut mf = frame.borrow_mut();
 
         match self {

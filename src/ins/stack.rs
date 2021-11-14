@@ -1,6 +1,6 @@
 use crate::ins::Stack;
 use crate::op::OpCode;
-use crate::runtime::{BytesReader, JThread, JFrame, OpStack};
+use crate::runtime::{misc::BytesReader, vm::JThread, vm::JFrame, misc::OpStack };
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -87,7 +87,6 @@ impl DupStack for OpStack {
 impl Stack for OpCode {
     fn stack(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>) {
         use crate::op::OpCode::*;
-        use crate::runtime::Slots;
         let mut mf = frame.borrow_mut();
 
         match self {
