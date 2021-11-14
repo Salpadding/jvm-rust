@@ -121,9 +121,17 @@ impl OpStack {
         self.size += 1;
    } 
 
+   pub fn push_i32(&mut self, v: i32) {
+       self.push_u32(v as u32);
+   } 
+
    pub fn push_u64(&mut self, v: u64) {
        self.slots.set_u64(self.size, v);
        self.size += 2;
+   } 
+
+   pub fn push_i64(&mut self, v: i64) {
+       self.push_u64(v as u64)
    } 
 
    pub fn push_f32(&mut self, v: f32) {
@@ -141,10 +149,18 @@ impl OpStack {
         r
    } 
 
+   pub fn pop_i32(&mut self) -> i32 {
+       self.pop_u32() as i32
+   } 
+
    pub fn pop_u64(&mut self) -> u64 {
         let r = self.slots.get_u64(self.size - 2);
         self.size -= 2;
         r
+   } 
+
+   pub fn pop_i64(&mut self) -> i64 {
+       self.pop_u64() as i64
    } 
 
    pub fn pop_f32(&mut self) -> f32 {
@@ -182,6 +198,10 @@ pub trait Slots {
     fn set_u32(&mut self, i: usize, v: u32);
     fn get_u32(&self, i: usize) -> u32;
     
+    fn set_i32(&mut self, i: usize, v: i32) ;
+
+    fn get_i32(&self, i: usize) -> i32;
+
     fn get_f32(&self, i: usize) -> f32 {
         f32::from_bits(self.get_u32(i))
     }
@@ -221,6 +241,15 @@ impl Slots for Vec<u64> {
     fn get_u32(&self, i: usize) -> u32 {
         self[i] as u32
     }
+
+    fn set_i32(&mut self, i: usize, v: i32) {
+        self[i] = v as u32 as u64;
+    }
+
+    fn get_i32(&self, i: usize) -> i32 {
+        self[i] as u32 as i32
+    }
+
 
     fn get_cell(&self, i: usize) -> u64 {
         self[i]

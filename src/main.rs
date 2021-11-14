@@ -1,3 +1,4 @@
+#![feature(unchecked_math)]
 use std::{ffi::OsString, ops::Deref, string::FromUtf8Error};
 
 #[derive(Debug)]
