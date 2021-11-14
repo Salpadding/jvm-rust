@@ -3,6 +3,7 @@ mod load;
 mod store;
 mod stack;
 mod math;
+mod conv;
 
 use crate::{op::OpCode, runtime::{JFrame, JThread, Jvm, BytesReader}};
 use std::rc::Rc;
@@ -27,4 +28,8 @@ pub trait Stack {
 
 pub trait Math {
     fn math(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>);
+}
+
+pub trait Conversion {
+    fn conv(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>);
 }
