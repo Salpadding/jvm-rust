@@ -5,9 +5,9 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 macro_rules! xstore {
-    ($rd: ident, $mf: ident, $p: ident, $s: ident) => {
+    ($rd: ident, $mf: ident, $p: ident, $s: ident, $w: expr) => {
         {
-               let end = $rd.u8() as usize;
+               let end = if $w { $rd.u16() as usize } else { $rd.u8() as usize };
                let v = {
                    $mf.stack.$p()
                };
@@ -50,15 +50,15 @@ macro_rules! astore_n {
 }
 
 impl Store for OpCode {
-    fn store(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>) {
+    fn store(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>, w: bool) {
         use crate::op::OpCode::*;
         use crate::runtime::Slots;
         let mut mf = frame.borrow_mut();
 
         match self {
-           istore | fstore => xstore!(rd, mf, pop_u32, set_u32),
-           lstore | dstore => xstore!(rd, mf, pop_u64, set_u64),
-           astore => xstore!(rd, mf, pop_cell, set_cell),
+           istore | fstore => xstore!(rd, mf, pop_u32, set_u32, w),
+           lstore | dstore => xstore!(rd, mf, pop_u64, set_u64, w),
+           astore => xstore!(rd, mf, pop_cell, set_cell, w),
            istore_0 | fstore_0 => istore_n!(mf, 0),
            istore_1 | fstore_1 => istore_n!(mf, 1),
            istore_2 | fstore_2 => istore_n!(mf, 2),

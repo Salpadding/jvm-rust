@@ -139,8 +139,15 @@ impl JThread {
                 pc: self.pc,
             };
 
-            let op: u8 = rd.u8().into();
-            op.step(&mut rd, self, f);
+            let op: u8 = rd.u8();
+
+            // wide
+            if op == 0xc4 {
+                let op: u8 = rd.u8();
+                op.step(&mut rd, self, f, true);
+            } else {
+                op.step(&mut rd, self, f, false);
+            }
 
             match self.next_pc {
                 None => self.pc = rd.pc,

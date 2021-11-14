@@ -6,8 +6,7 @@ use std::sync::Arc;
 use crate::{StringErr, entry};
 
 impl From<ClassFile> for Class {
-    fn from(c: ClassFile) -> Self {
-       let mut c = c;
+    fn from(mut c: ClassFile) -> Self {
        let mut r = Class::default(); 
        r.access_flags = AccessFlags(c.access_flags);
        r.name = c.this_class().to_string();
@@ -40,6 +39,23 @@ impl From<&MemberInfo> for ClassMember {
         }
             r
 
+    }
+}
+
+pub struct Object {
+    pub class: Arc<Class>,
+    pub fields: Vec<u64>,
+}
+
+impl Object {
+    pub fn forget(o: Box<Object>) -> u64 {
+        let p = std::boxed::Box::leak(o);
+        p as *mut Object as usize as u64
+    }
+
+    pub fn from_ptr(p: u64) -> Box<Object> {
+        let p = p as usize as *mut Object;
+        unsafe { Box::from_raw(p) }
     }
 }
 

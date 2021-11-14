@@ -5,9 +5,9 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 macro_rules! xload {
-    ($rd: ident, $mf: ident, $gt: ident, $pt: ident) => {
+    ($rd: ident, $mf: ident, $gt: ident, $pt: ident, $wd: expr) => {
         {
-                let i = $rd.u8() as usize;
+                let i = if $wd { $rd.u16() as usize } else { $rd.u8() as usize };
                 let v = {
                         $mf.local_vars.$gt(i)
                 };
@@ -50,15 +50,15 @@ macro_rules! lload_n {
 }
 
 impl Load for OpCode {
-    fn load(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>) {
+    fn load(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>, w: bool) {
         use crate::op::OpCode::*;
         use crate::runtime::Slots;
         let mut mf = frame.borrow_mut();
 
         match self {
-            iload | fload => xload!(rd, mf, get_u32, push_u32),
-            lload | dload => xload!(rd, mf, get_u64, push_u64),
-            aload => xload!(rd, mf, get_cell, push_cell),
+            iload | fload => xload!(rd, mf, get_u32, push_u32, w),
+            lload | dload => xload!(rd, mf, get_u64, push_u64, w),
+            aload => xload!(rd, mf, get_cell, push_cell, w),
             
             iload_0 | fload_0 => iload_n!(mf, 0),
             iload_1 | fload_1 => iload_n!(mf, 1),

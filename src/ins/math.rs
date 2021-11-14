@@ -80,7 +80,7 @@ macro_rules! sh {
 }
 
 impl Math for OpCode {
-    fn math(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>) {
+    fn math(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>, w: bool) {
         use crate::op::OpCode::*;
         use crate::runtime::Slots;
         use core::ops::{Add, Mul, Sub, Div, Rem, Neg, Shl, Shr, BitAnd, BitOr, BitXor};
@@ -126,8 +126,8 @@ impl Math for OpCode {
             iinc => {
                 let (i, c) = {
                     (
-                        rd.u8() as usize,
-                        rd.u8() as i8 as i32,
+                        if w { rd.u16() as usize } else { rd.u8() as usize },
+                        if w { rd.u16() as i16 as i32 } else { rd.u8() as i8 as i32 },
                     )
                 };
                 let v = {
