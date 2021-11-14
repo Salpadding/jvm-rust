@@ -57,6 +57,17 @@ pub struct Class {
     pub interfaces: Vec<Arc<Class>>,
 }
 
+impl Class {
+    pub fn main_method(&self) -> Option<Arc<ClassMember>> {
+        for m in self.methods.iter() {
+            if &m.name == "main" && &m.desc == "([Ljava/lang/String;)V" {
+                return Some(m.clone());
+            }
+        }
+        None
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct ClassMember {
     pub access_flags: AccessFlags,
@@ -80,7 +91,7 @@ pub struct ClassLoader {
 
 
 impl ClassLoader {
-    fn new(cp: &str) -> Result<Self, StringErr> {
+    pub fn new(cp: &str) -> Result<Self, StringErr> {
         let entry = entry::new_entry(cp)?;
 
         Ok(
@@ -91,7 +102,7 @@ impl ClassLoader {
         )
     }
 
-    fn load(&mut self, name: &str) -> Arc<Class> {
+    pub fn load(&mut self, name: &str) -> Arc<Class> {
         match self.loaded.get(name) {
            Some(cl)  => return cl.clone(),
            _ => {},

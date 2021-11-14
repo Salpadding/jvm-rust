@@ -127,7 +127,7 @@ impl Math for OpCode {
                 let (i, c) = {
                     (
                         rd.u8() as usize,
-                        rd.u8() as i32,
+                        rd.u8() as i8 as i32,
                     )
                 };
                 let v = {

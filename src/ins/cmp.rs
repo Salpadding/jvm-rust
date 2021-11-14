@@ -28,56 +28,56 @@ macro_rules! cmp {
 }
 
 macro_rules! br_1 {
-    ($rd: ident, $mf: ident, $p: ident, $x: ident, $e: expr) => {
+    ($th: ident, $rd: ident, $mf: ident, $p: ident, $x: ident, $e: expr) => {
         {
-            let off = $rd.i16() as isize; 
+            let off = $rd.i16() as i32; 
             let $x = {
                 $mf.stack.$p()
             };
 
             if $e {
-                $rd.branch(off);
+                $th.branch(off);
             }
         }
     };
 }
 
 macro_rules! br_1i {
-    ($rd: ident, $mf: ident, $x: ident, $e: expr) => {
-       br_1!($rd, $mf, pop_i32, $x, $e) 
+    ($th: ident, $rd: ident, $mf: ident, $x: ident, $e: expr) => {
+       br_1!($th, $rd, $mf, pop_i32, $x, $e) 
     };
 }
 
 macro_rules! br_1a {
-    ($rd: ident, $mf: ident, $x: ident, $e: expr) => {
-       br_1!($rd, $mf, pop_cell, $x, $e) 
+    ($th: ident, $rd: ident, $mf: ident, $x: ident, $e: expr) => {
+       br_1!($th, $rd, $mf, pop_cell, $x, $e) 
     };
 }
 
 macro_rules! br_2 {
-    ($rd: ident, $mf: ident, $p: ident, $x: ident, $y: ident, $e: expr) => {
+    ($th: ident, $rd: ident, $mf: ident, $p: ident, $x: ident, $y: ident, $e: expr) => {
         {
-            let off = $rd.i16() as isize; 
+            let off = $rd.i16() as i32; 
             let ($y, $x) = {
                 ($mf.stack.$p(), $mf.stack.$p())
             };
 
             if $e {
-                $rd.branch(off);
+                $th.branch(off);
             }
         }
     };
 }
 
 macro_rules! br_2i {
-    ($rd: ident, $mf: ident, $x: ident, $y: ident, $e: expr) => {
-        br_2!($rd, $mf, pop_i32, $x, $y, $e)    
+    ($th: ident, $rd: ident, $mf: ident, $x: ident, $y: ident, $e: expr) => {
+        br_2!($th, $rd, $mf, pop_i32, $x, $y, $e)    
     };
 }
 
 macro_rules! br_2a {
-    ($rd: ident, $mf: ident, $x: ident, $y: ident, $e: expr) => {
-        br_2!($rd, $mf, pop_cell, $x, $y, $e)    
+    ($th: ident, $rd: ident, $mf: ident, $x: ident, $y: ident, $e: expr) => {
+        br_2!($th, $rd, $mf, pop_cell, $x, $y, $e)    
     };
 }
 
@@ -93,23 +93,23 @@ impl Compare for OpCode {
             fcmpg => cmp!(mf, pop_f32, 1),
             dcmpl => cmp!(mf, pop_f64, -1),
             dcmpg => cmp!(mf, pop_f64, 1),
-            ifeq => br_1i!(rd, mf, x, x == 0),
-            ifne => br_1i!(rd, mf, x, x != 0),
-            iflt => br_1i!(rd, mf, x, x < 0),
-            ifge => br_1i!(rd, mf, x, x >= 0),
-            ifgt => br_1i!(rd, mf, x, x > 0),
-            ifle => br_1i!(rd, mf, x, x <= 0),
-            if_icmpeq => br_2i!(rd, mf, x, y, x == y),
-            if_icmpne => br_2i!(rd, mf, x, y, x != y),
-            if_icmplt => br_2i!(rd, mf, x, y, x < y),
-            if_icmpge => br_2i!(rd, mf, x, y, x >= y),
-            if_icmpgt => br_2i!(rd, mf, x, y, x > y),
-            if_icmple => br_2i!(rd, mf, x, y, x <= y),
-            if_acmpeq => br_2a!(rd, mf, x, y, x == y),
-            if_acmpne => br_2a!(rd, mf, x, y, x != y),
+            ifeq => br_1i!(th, rd, mf, x, x == 0),
+            ifne => br_1i!(th, rd, mf, x, x != 0),
+            iflt => br_1i!(th, rd, mf, x, x < 0),
+            ifge => br_1i!(th, rd, mf, x, x >= 0),
+            ifgt => br_1i!(th, rd, mf, x, x > 0),
+            ifle => br_1i!(th, rd, mf, x, x <= 0),
+            if_icmpeq => br_2i!(th, rd, mf, x, y, x == y),
+            if_icmpne => br_2i!(th, rd, mf, x, y, x != y),
+            if_icmplt => br_2i!(th, rd, mf, x, y, x < y),
+            if_icmpge => br_2i!(th, rd, mf, x, y, x >= y),
+            if_icmpgt => br_2i!(th, rd, mf, x, y, x > y),
+            if_icmple => br_2i!(th, rd, mf, x, y, x <= y),
+            if_acmpeq => br_2a!(th, rd, mf, x, y, x == y),
+            if_acmpne => br_2a!(th, rd, mf, x, y, x != y),
 
-            ifnull => br_1a!(rd, mf, x, x == 0),
-            ifnonnull => br_1a!(rd, mf, x, x != 0),
+            ifnull => br_1a!(th, rd, mf, x, x == 0),
+            ifnonnull => br_1a!(th, rd, mf, x, x != 0),
             _ => {
                 panic!("invalid op {:?}", self);
             }

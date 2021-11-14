@@ -1,19 +1,22 @@
-use std::borrow::Borrow;
 use std::{cell::RefCell, cell::Ref};
 use std::rc::Rc;
+use std::sync::Arc;
 
+use crate::StringErr;
 use crate::heap::{ClassLoader, ClassMember};
-use crate::op::OpCode;
+
+const MAX_JSTACK_SIZE: usize = 1024;
 
 pub struct BytesReader<'a> {
     pub bytes: &'a [u8],
-    pub pc: usize,
+    pub pc: i32,
 }
 
 macro_rules! br_un {
     ($a: ident, $w: expr) => {
        pub fn $a(&mut self) -> $a {
-            let s = &self.bytes[self.pc..self.pc + $w];
+            let p = self.pc as usize;
+            let s = &self.bytes[p..p + $w];
             self.pc += $w;
             let mut b = [0u8; $w];
             b.copy_from_slice(s);
@@ -24,7 +27,7 @@ macro_rules! br_un {
 
 impl <'a> BytesReader<'a> {
     pub fn u8(&mut self) -> u8 {
-        let u = self.bytes[self.pc];
+        let u = self.bytes[self.pc as usize];
         self.pc += 1;
         u
     }
@@ -50,16 +53,12 @@ impl <'a> BytesReader<'a> {
         }
     }
 
-    pub fn read_u32s(&mut self, n: usize) -> Vec<u32> {
-        let mut r: Vec<u32> = Vec::with_capacity(n);
+    pub fn read_i32s(&mut self, n: usize) -> Vec<i32> {
+        let mut r: Vec<i32> = Vec::with_capacity(n);
         for _ in 0..n {
-            r.push(self.u32());
+            r.push(self.i32());
         }
         r
-    }
-
-    pub fn branch(&mut self, off: isize) {
-        self.pc = ((self.pc as isize) + off) as usize;
     }
 }
 
@@ -67,39 +66,86 @@ impl <'a> BytesReader<'a> {
 #[derive(Debug)]
 pub struct Jvm {
     loader: ClassLoader,
+    thread: JThread,
+}
+
+impl Jvm {
+    pub fn new(cp: &str) -> Result<Self, StringErr> {
+        let loader = ClassLoader::new(cp)?;
+        Ok(
+            Jvm {
+                loader,
+                thread: JThread::new(),
+            }
+        )
+    }
+
+    pub fn run_class(&mut self, c: &str) -> Result<(), StringErr> {
+        // load class
+        let c = self.loader.load(c);
+
+        // get main method
+        let main = c.main_method();
+        if main.is_none() {
+            return err!("class {} has no main method", c.name);
+        }
+
+        self.thread.stack.push_frame(JFrame::from_method(main.unwrap()));
+        self.thread.run();
+
+        Ok(())
+    }
 }
 
 
 #[derive(Debug)]
 pub struct JThread {
-    pub pc: u32,
+    pub pc: i32,
     pub stack: JStack,
-    pub vm: Rc<RefCell<Jvm>>,
+    pub next_pc: Option<i32>,
 }
 
-
+impl JThread {
+    pub fn branch(&mut self, off: i32) {
+        self.next_pc = Some(off);
+    }
+}
 
 impl JThread {
+    pub fn new() -> Self {
+        Self {
+            pc: 0,
+            stack: JStack::new(),
+            next_pc: None,
+        }
+    }
+
     pub fn cur_frame(&self) -> Rc<RefCell<JFrame>> {
         self.stack.cur_frame()
     }
 
+
     pub fn run(&mut self) {
-        use crate::ins::Constant;
-        loop {
+        use crate::ins::Ins;
+        while !self.stack.is_empty() {
             let f = self.cur_frame();
             let method = {
                 let b: Ref<JFrame> = RefCell::borrow(&*f);
                 b.method.clone()
             };
-            // let pc = f.next_pc();
+            self.next_pc = None;
             let mut rd = BytesReader {
                 bytes: &method.code,
-                pc: 0,
+                pc: self.pc,
             };
 
-            let op: OpCode = rd.u8().into();
-            op.con(&mut rd, self, f);
+            let op: u8 = rd.u8().into();
+            op.step(&mut rd, self, f);
+
+            match self.next_pc {
+                None => self.pc = rd.pc,
+                Some(off) => self.pc += off,
+            }
         }
     }
 }
@@ -108,24 +154,36 @@ impl JThread {
 #[derive(Debug, Default)]
 pub struct JStack {
     pub max_size: usize,
-    pub frames: Vec<Rc<RefCell<JFrame>>>,
+    pub frames: Vec<Option<Rc<RefCell<JFrame>>>>,
     pub size: usize,
 }
 
 impl JStack {
+    fn new() -> Self {
+        Self {
+            max_size: MAX_JSTACK_SIZE,
+            frames: vec![None; MAX_JSTACK_SIZE],
+            size: 0,
+        }
+    }
+
     fn push_frame(&mut self, frame: JFrame) {
-        self.frames[self.size] = Rc::new(RefCell::new(frame));
+        self.frames[self.size] = Some(Rc::new(RefCell::new(frame)));
         self.size += 1;
     }
 
-    fn pop_frame(&mut self) -> Rc<RefCell<JFrame>> {
-        let top = self.frames[self.size - 1].clone();
+    pub fn pop_frame(&mut self) -> Rc<RefCell<JFrame>> {
+        let top = self.frames[self.size - 1].as_ref().unwrap().clone();
         self.size -= 1;
         top
     }
 
     fn cur_frame(&self) -> Rc<RefCell<JFrame>> {
-        self.frames[self.size - 1].clone()
+        self.frames[self.size - 1].as_ref().unwrap().clone()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.size == 0
     }
 }
 
@@ -134,9 +192,18 @@ impl JStack {
 pub struct JFrame {
     pub local_vars: Vec<u64>,
     pub stack: OpStack,
-    pub method: Rc<ClassMember>,
+    pub method: Arc<ClassMember>,
 }
 
+impl JFrame {
+    pub fn from_method(m: Arc<ClassMember>) -> Self {
+        Self {
+            local_vars: vec![0u64; m.max_locals],
+            stack: OpStack { slots: vec![0u64; m.max_stack], size: 0 },
+            method: m.clone(),
+        }
+    }
+}
 
 
 #[derive(Debug, Default)]
@@ -294,7 +361,7 @@ impl Slots for Vec<u64> {
 mod test {
     use crate::runtime::OpStack;
 
-    use super::Slots;
+    use super::{Jvm, Slots};
     #[test]
     fn test_local_vars() {
         let mut v: Vec<u64> = vec![0u64; 32];
@@ -334,5 +401,11 @@ mod test {
         assert_eq!(s.pop_u64(), 2997924580u64);
         assert_eq!(s.pop_u32(), -100i32 as u32);
         assert_eq!(s.pop_u32(), 100);
+    }
+
+    #[test]
+    fn test_jvm() {
+        let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
+        jvm.run_class("test/Gauss").unwrap();
     }
 }

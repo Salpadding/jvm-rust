@@ -43,3 +43,31 @@ pub trait Compare {
 pub trait Control {
     fn ctl(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>);
 }
+
+pub trait Ins {
+    fn step(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>);
+}
+
+
+impl Ins for u8 {
+    fn step(self, rd: &mut BytesReader,  th: &mut JThread, c: Rc<RefCell<JFrame>>) {
+        let op: OpCode = self.into();
+
+        match self {
+           0x00..=0x14 => op.con(rd, th, c),
+           0x15..=0x35 => op.load(rd, th, c),
+           0x36..=0x56 => op.store(rd, th, c),
+           0x57..=0x5f => op.stack(rd, th, c),
+           0x60..=0x84 => op.math(rd, th, c),
+           0x85..=0x93 => op.conv(rd, th, c),
+           0x94..=0xa6 | 0xc6 | 0xc7 => op.cmp(rd, th, c),
+           0xa7..=0xb0 | 0xc8 => op.ctl(rd, th, c),
+           0xb1 => {
+               let locals = &c.borrow().local_vars;
+               th.stack.pop_frame();
+               println!("return locals = {:?}", locals);
+           }
+           _ => panic!("invalid op {}", self)
+        }
+    }
+}
