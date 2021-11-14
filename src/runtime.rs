@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::StringErr;
-use crate::heap::{ClassLoader, ClassMember};
+use crate::heap::{Class, ClassLoader, ClassMember, Heap};
 
 const MAX_JSTACK_SIZE: usize = 1024;
 
@@ -65,16 +65,16 @@ impl <'a> BytesReader<'a> {
 // jvm runtime representation
 #[derive(Debug)]
 pub struct Jvm {
-    loader: ClassLoader,
+    heap: Arc<RefCell<Heap>>,
     thread: JThread,
 }
 
 impl Jvm {
     pub fn new(cp: &str) -> Result<Self, StringErr> {
-        let loader = ClassLoader::new(cp)?;
+        let heap = Heap::new(cp)?;
         Ok(
             Jvm {
-                loader,
+                heap: Arc::new(RefCell::new(heap)),
                 thread: JThread::new(),
             }
         )
@@ -82,7 +82,10 @@ impl Jvm {
 
     pub fn run_class(&mut self, c: &str) -> Result<(), StringErr> {
         // load class
-        let c = self.loader.load(c);
+        let c = {
+            let mut h = self.heap.borrow_mut();
+            h.loader.load(c)
+        };
 
         // get main method
         let main = c.main_method();
@@ -90,7 +93,7 @@ impl Jvm {
             return err!("class {} has no main method", c.name);
         }
 
-        self.thread.stack.push_frame(JFrame::from_method(main.unwrap()));
+        self.thread.stack.push_frame(JFrame::from_method(c, main.unwrap()));
         self.thread.run();
 
         Ok(())
@@ -200,14 +203,16 @@ pub struct JFrame {
     pub local_vars: Vec<u64>,
     pub stack: OpStack,
     pub method: Arc<ClassMember>,
+    pub class: Arc<Class>,
 }
 
 impl JFrame {
-    pub fn from_method(m: Arc<ClassMember>) -> Self {
+    pub fn from_method(c: Arc<Class>, m: Arc<ClassMember>) -> Self {
         Self {
             local_vars: vec![0u64; m.max_locals],
             stack: OpStack { slots: vec![0u64; m.max_stack], size: 0 },
             method: m.clone(),
+            class: c,
         }
     }
 }

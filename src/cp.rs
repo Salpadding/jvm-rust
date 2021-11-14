@@ -80,8 +80,8 @@ impl ReadFrom for MemberInfo {
 
 #[derive(Default, Debug)]
 pub struct ConstantPool {
-    n: usize,
     infos: Vec<ConstantInfo>,
+
 }
 
 impl ReadFrom for ConstantPool {
@@ -97,7 +97,6 @@ impl ReadFrom for ConstantPool {
         }
 
         ConstantPool {
-            n,
             infos,
         }
     }
@@ -145,28 +144,28 @@ impl ConstantPool {
 
     pub fn u32(&self, i: usize) -> u32 {
         match self.infos[i] {
-            ConstantInfo::Integer(i) => i as u32,
-            _ => panic!("invalid u32 index")
+            ConstantInfo::Integer(j) => j as u32,
+            _ => panic!("invalid u32 index found")
         }
     }
 
     pub fn f32(&self, i: usize) -> f32 {
         match self.infos[i] {
-            ConstantInfo::Float(i) => i,
+            ConstantInfo::Float(j) => j,
             _ => panic!("invalid integer index")
         }
     }
 
     pub fn u64(&self, i: usize) -> u64 {
         match self.infos[i] {
-            ConstantInfo::Long(i) => i as u64,
+            ConstantInfo::Long(j) => j,
             _ => panic!("invalid u64 index")
         }
     }
 
     pub fn f64(&self, i: usize) -> f64 {
         match self.infos[i] {
-            ConstantInfo::Double(i) => i,
+            ConstantInfo::Double(j) => j,
             _ => panic!("invalid f64 index")
         }
     }

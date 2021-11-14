@@ -34,6 +34,9 @@ impl From<&MemberInfo> for ClassMember {
                  r.max_stack = c.max_stack as usize;
                  r.max_locals = c.max_locals as usize;
                },
+               &AttrInfo::ConstantValue(i) => {
+                   r.cons_i = i as usize;
+               }
                _ => {}
             }
         }
@@ -71,16 +74,59 @@ pub struct Class {
 
     pub super_class: Option<Arc<Class>>,
     pub interfaces: Vec<Arc<Class>>,
+
+    pub static_fields: Vec<Arc<ClassMember>>,
+    pub static_vars: Vec<u64>,
+
+    pub ins_fields: Vec<Arc<ClassMember>>,
 }
 
 impl Class {
     pub fn main_method(&self) -> Option<Arc<ClassMember>> {
         for m in self.methods.iter() {
-            if &m.name == "main" && &m.desc == "([Ljava/lang/String;)V" {
+            if &m.name == "main" && &m.desc == "([Ljava/lang/String;)V" && m.access_flags.is_static(){
                 return Some(m.clone());
             }
         }
         None
+    }
+
+    fn count_class_vars(&self) -> usize {
+        self.fields.iter().filter(|x| x.access_flags.is_static()).count()
+    }
+
+    fn count_ins_fields(&self) -> usize {
+        let base = match self.super_class {
+            None => 0,
+            Some(ref c) => c.count_ins_fields(),
+        };
+        base + self.fields.iter().filter(|x| !x.access_flags.is_static()).count()
+    }
+
+    fn get_ins_field(&self, i: usize) -> Arc<ClassMember> {
+        self.ins_fields[i].clone()
+    }
+
+    fn init_finals(&mut self) {
+        for i in 0..self.static_fields.len() {
+            let f = &self.static_fields[i];
+
+            if !f.access_flags.is_final() {
+                continue;
+            }
+
+            match &*f.desc {
+                "Z" | "B" | "C" | "S" | "I" => {
+                    self.static_vars[i] = self.cp.u32(f.cons_i) as u64;
+                }
+                "J" => {
+                    self.static_vars[i] = self.cp.u64(f.cons_i);
+                }
+                "F" => self.static_vars[i] = self.cp.f32(f.cons_i).to_bits() as u64,
+                "D" => self.static_vars[i] = self.cp.f64(f.cons_i).to_bits(),
+                _ => panic!("invalid final type {}", &f.desc)
+            }
+        }
     }
 }
 
@@ -92,12 +138,62 @@ pub struct ClassMember {
     pub max_stack: usize,
     pub max_locals: usize,
     pub code: Vec<u8>,
+    pub cons_i: usize,
 }
 
 
 #[derive(Debug, Default)]
 pub struct AccessFlags(u16);
 
+macro_rules! is_xx {
+    ($f: ident, $b: expr) => {
+        pub fn $f(&self) -> bool {
+            self.0 & $b != 0
+        }
+    };
+}
+
+impl AccessFlags {
+    is_xx!(is_public, flags::ACC_PUBLIC);
+    is_xx!(is_private, flags::ACC_PRIVATE);
+    is_xx!(is_protected, flags::ACC_PROTECTED);
+    is_xx!(is_static, flags::ACC_STATIC);
+    is_xx!(is_final, flags::ACC_FINAL);
+    is_xx!(is_super, flags::ACC_SUPER);
+    is_xx!(is_sync, flags::ACC_SYNCHRONIZED);
+    is_xx!(is_volatile, flags::ACC_VOLATILE);
+    is_xx!(is_bridge, flags::ACC_BRIDGE);
+    is_xx!(is_transient, flags::ACC_TRANSIENT);
+    is_xx!(is_varargs, flags::ACC_VARARGS);
+    is_xx!(is_native, flags::ACC_NATIVE);
+    is_xx!(is_iface, flags::ACC_INTERFACE);
+    is_xx!(is_abstract, flags::ACC_ABSTRACT);
+    is_xx!(is_strict, flags::ACC_STRICT);
+    is_xx!(is_synthetic, flags::ACC_SYNTHETIC);
+    is_xx!(is_annotation, flags::ACC_ANNOTATION);
+    is_xx!(is_enum, flags::ACC_ENUM);
+}
+
+mod flags {
+	pub const ACC_PUBLIC: u16       = 0x0001 ;// class field method
+	pub const ACC_PRIVATE: u16      = 0x0002 ;//       field method
+	pub const ACC_PROTECTED: u16    = 0x0004 ;//       field method
+	pub const ACC_STATIC: u16       = 0x0008 ;//       field method
+	pub const ACC_FINAL: u16        = 0x0010 ;// class field method
+	pub const ACC_SUPER: u16        = 0x0020 ;// class
+	pub const ACC_SYNCHRONIZED: u16 = 0x0020 ;//             method
+	pub const ACC_VOLATILE: u16     = 0x0040 ;//       field
+	pub const ACC_BRIDGE: u16       = 0x0040 ;//             method
+	pub const ACC_TRANSIENT: u16    = 0x0080 ;//       field
+	pub const ACC_VARARGS: u16      = 0x0080 ;//             method
+	pub const ACC_NATIVE: u16       = 0x0100 ;//             method
+	pub const ACC_INTERFACE: u16    = 0x0200 ;// class
+	pub const ACC_ABSTRACT: u16     = 0x0400 ;// class       method
+	pub const ACC_STRICT: u16       = 0x0800 ;//             method
+	pub const ACC_SYNTHETIC: u16    = 0x1000 ;// class field method
+	pub const ACC_ANNOTATION: u16   = 0x2000 ;// class
+	pub const ACC_ENUM: u16         = 0x4000 ;// class field
+}
 
 #[derive(Debug)]
 pub struct ClassLoader {
@@ -141,8 +237,25 @@ impl ClassLoader {
         for n in cl.iface_names.iter() {
             ifaces.push(self.load(n));
         }
-
         cl.interfaces = ifaces;
+        cl.static_fields = cl.fields.iter().filter(|x| x.access_flags.is_static()).map(|x| x.clone()).collect();
+        cl.static_vars = vec![0u64; cl.static_fields.len()];
+        cl.init_finals();
+
+
+        // init instance fields
+        let base = match cl.super_class {
+            None => 0,
+            Some(ref c) => c.count_ins_fields(),
+        };
+        
+        for i in 0..base {
+            cl.ins_fields.push(cl.super_class.as_ref().unwrap().get_ins_field(i));
+        }
+
+        for f in cl.fields.iter().filter(|x| !x.access_flags.is_static()) {
+           cl.ins_fields.push(f.clone());
+        }
 
         let arc = Arc::new(cl);
         let cloned = arc.clone();
@@ -152,9 +265,26 @@ impl ClassLoader {
     }
 }
 
+#[derive(Debug)]
+pub struct Heap {
+    pub loader: ClassLoader,
+}
+
+impl Heap {
+    pub fn new(cp: &str) -> Result<Self, StringErr> {
+        let loader = ClassLoader::new(cp)?;
+        Ok(
+            Heap {
+                loader,
+            }
+        )
+    }
+
+}
+
 #[cfg(test)]
 mod test {
-    use super::ClassLoader;
+    use super::{AccessFlags, ClassLoader};
 
     #[test]
     fn loader_test() {
