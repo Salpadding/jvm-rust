@@ -1,89 +1,73 @@
 use crate::ins::Math;
 use crate::op::OpCode;
-use crate::runtime::{misc::BytesReader, vm::JThread, vm::JFrame};
-use std::rc::Rc;
-use std::cell::RefCell;
 use crate::runtime::misc::Slots;
+use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 macro_rules! b_op {
-    ($mf: ident, $p: ident, $psh: ident, $f: ident) => {
-       {
-           let (v2, v1) = {
-               (
-                $mf.stack.$p(),
-                $mf.stack.$p()
-               )
-           };
+    ($mf: ident, $p: ident, $psh: ident, $f: ident) => {{
+        let (v2, v1) = { ($mf.stack.$p(), $mf.stack.$p()) };
 
-           $mf.stack.$psh(v1.$f(v2));
-       } 
-    };
+        $mf.stack.$psh(v1.$f(v2));
+    }};
 }
 
 macro_rules! b_i32 {
     ($mf: ident, $f: ident) => {
-       unsafe { b_op!($mf, pop_i32, push_i32, $f) }
+        unsafe { b_op!($mf, pop_i32, push_i32, $f) }
     };
 }
 
 macro_rules! b_u32 {
-    ($mf: ident, $f: ident) => {
-       { b_op!($mf, pop_u32, push_u32, $f) }
-    };
+    ($mf: ident, $f: ident) => {{
+        b_op!($mf, pop_u32, push_u32, $f)
+    }};
 }
 
 macro_rules! b_i64 {
     ($mf: ident, $f: ident) => {
-       unsafe { b_op!($mf, pop_i64, push_i64, $f) }
+        unsafe { b_op!($mf, pop_i64, push_i64, $f) }
     };
 }
 
 macro_rules! b_u64 {
-    ($mf: ident, $f: ident) => {
-       { b_op!($mf, pop_u64, push_u64, $f) }
-    };
+    ($mf: ident, $f: ident) => {{
+        b_op!($mf, pop_u64, push_u64, $f)
+    }};
 }
 
 macro_rules! b_f32 {
-    ($mf: ident, $f: ident) => {
-       { b_op!($mf, pop_f32, push_f32, $f) }
-    };
+    ($mf: ident, $f: ident) => {{
+        b_op!($mf, pop_f32, push_f32, $f)
+    }};
 }
 
 macro_rules! b_f64 {
-    ($mf: ident, $f: ident) => {
-       { b_op!($mf, pop_f64, push_f64, $f) }
-    };
+    ($mf: ident, $f: ident) => {{
+        b_op!($mf, pop_f64, push_f64, $f)
+    }};
 }
 
 macro_rules! u_op {
-    ($mf: ident, $pp: ident, $psh: ident, $f: ident) => {
-       {
-           let v = $mf.stack.$pp();
-           $mf.stack.$psh(v.$f());
-       } 
-    };
+    ($mf: ident, $pp: ident, $psh: ident, $f: ident) => {{
+        let v = $mf.stack.$pp();
+        $mf.stack.$psh(v.$f());
+    }};
 }
 
 macro_rules! sh {
-    ($mf: ident, $p: ident, $psh: ident, $f: ident, $m: expr) => {
-        {
-           let (v2, v1) = {
-               (
-                $mf.stack.pop_u32(),
-                $mf.stack.$p()
-               )
-           };
+    ($mf: ident, $p: ident, $psh: ident, $f: ident, $m: expr) => {{
+        let (v2, v1) = { ($mf.stack.pop_u32(), $mf.stack.$p()) };
 
-           $mf.stack.$psh(v1.$f(v2 & $m));
-       }           
-    };
+        $mf.stack.$psh(v1.$f(v2 & $m));
+    }};
 }
 
 impl Math for OpCode {
-    fn math(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>, w: bool) {
+    fn math(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>, w: bool) {
         use crate::op::OpCode::*;
-        use core::ops::{Add, Mul, Sub, Div, Rem, Neg, Shl, Shr, BitAnd, BitOr, BitXor};
+        use core::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Rem, Shl, Shr, Sub};
         let mut mf = frame.borrow_mut();
 
         match self {
@@ -126,16 +110,22 @@ impl Math for OpCode {
             iinc => {
                 let (i, c) = {
                     (
-                        if w { rd.u16() as usize } else { rd.u8() as usize },
-                        if w { rd.u16() as i16 as i32 } else { rd.u8() as i8 as i32 },
+                        if w {
+                            rd.u16() as usize
+                        } else {
+                            rd.u8() as usize
+                        },
+                        if w {
+                            rd.u16() as i16 as i32
+                        } else {
+                            rd.u8() as i8 as i32
+                        },
                     )
                 };
-                let v = {
-                    mf.local_vars.get_i32(i)
-                };
+                let v = { mf.local_vars.get_i32(i) };
                 mf.local_vars.set_i32(i, v + c);
-            },
-            _ => panic!("invalid op {:?}", self)
+            }
+            _ => panic!("invalid op {:?}", self),
         };
     }
 }

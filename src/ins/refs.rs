@@ -18,7 +18,7 @@ impl Refs for OpCode {
                         frame.borrow().class_ref(i)
                     };
 
-                    let ptr = th.heap.borrow().new_object(sym.class.clone());
+                    let ptr = frame.borrow().new_obj(sym.class.clone());
                     ptr
                 };
 

@@ -1,0 +1,7 @@
+{
+    "files.autoSave": "onFocusChange",
+    "[rust]" : {
+        "editor.defaultFormatter": "matklad.rust-analyzer",
+        "editor.formatOnSave": true
+    }
+}

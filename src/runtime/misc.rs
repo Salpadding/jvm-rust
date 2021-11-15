@@ -5,18 +5,18 @@ pub struct BytesReader<'a> {
 
 macro_rules! br_un {
     ($a: ident, $w: expr) => {
-       pub fn $a(&mut self) -> $a {
+        pub fn $a(&mut self) -> $a {
             let p = self.pc as usize;
             let s = &self.bytes[p..p + $w];
             self.pc += $w;
             let mut b = [0u8; $w];
             b.copy_from_slice(s);
             $a::from_be_bytes(b)
-       } 
+        }
     };
 }
 
-impl <'a> BytesReader<'a> {
+impl<'a> BytesReader<'a> {
     pub fn u8(&mut self) -> u8 {
         let u = self.bytes[self.pc as usize];
         self.pc += 1;
@@ -60,76 +60,75 @@ pub struct OpStack {
 }
 
 impl OpStack {
-   pub fn push_u32(&mut self, v: u32) {
+    pub fn push_u32(&mut self, v: u32) {
         self.slots.set_u32(self.size, v);
         self.size += 1;
-   } 
+    }
 
-   pub fn push_i32(&mut self, v: i32) {
-       self.push_u32(v as u32);
-   } 
+    pub fn push_i32(&mut self, v: i32) {
+        self.push_u32(v as u32);
+    }
 
-   pub fn push_u64(&mut self, v: u64) {
-       self.slots.set_u64(self.size, v);
-       self.size += 2;
-   } 
+    pub fn push_u64(&mut self, v: u64) {
+        self.slots.set_u64(self.size, v);
+        self.size += 2;
+    }
 
-   pub fn push_i64(&mut self, v: i64) {
-       self.push_u64(v as u64)
-   } 
+    pub fn push_i64(&mut self, v: i64) {
+        self.push_u64(v as u64)
+    }
 
-   pub fn push_f32(&mut self, v: f32) {
-       self.push_u32(v.to_bits());
-   }
+    pub fn push_f32(&mut self, v: f32) {
+        self.push_u32(v.to_bits());
+    }
 
+    pub fn push_f64(&mut self, v: f64) {
+        self.push_u64(v.to_bits());
+    }
 
-   pub fn push_f64(&mut self, v: f64) {
-       self.push_u64(v.to_bits());
-   }
-
-   pub fn pop_u32(&mut self) -> u32 {
+    pub fn pop_u32(&mut self) -> u32 {
         let r = self.slots.get_u32(self.size - 1);
         self.size -= 1;
         r
-   } 
+    }
 
-   pub fn pop_i32(&mut self) -> i32 {
-       self.pop_u32() as i32
-   } 
+    pub fn pop_i32(&mut self) -> i32 {
+        self.pop_u32() as i32
+    }
 
-   pub fn pop_u64(&mut self) -> u64 {
+    pub fn pop_u64(&mut self) -> u64 {
         let r = self.slots.get_u64(self.size - 2);
         self.size -= 2;
         r
-   } 
+    }
 
-   pub fn pop_i64(&mut self) -> i64 {
-       self.pop_u64() as i64
-   } 
+    pub fn pop_i64(&mut self) -> i64 {
+        self.pop_u64() as i64
+    }
 
-   pub fn pop_f32(&mut self) -> f32 {
-       f32::from_bits(self.pop_u32())
-   }
+    pub fn pop_f32(&mut self) -> f32 {
+        f32::from_bits(self.pop_u32())
+    }
 
-   pub fn pop_f64(&mut self) -> f64 {
-       f64::from_bits(self.pop_u64())
-   }
+    pub fn pop_f64(&mut self) -> f64 {
+        f64::from_bits(self.pop_u64())
+    }
 
-   pub fn push_nil(&mut self) {
-       self.slots[self.size] = 0;
-       self.size += 1;
-   }
+    pub fn push_nil(&mut self) {
+        self.slots[self.size] = 0;
+        self.size += 1;
+    }
 
-   pub fn push_cell(&mut self, v: u64) {
-       self.slots[self.size] = v;
-       self.size += 1;
-   }
+    pub fn push_cell(&mut self, v: u64) {
+        self.slots[self.size] = v;
+        self.size += 1;
+    }
 
-   pub fn pop_cell(&mut self) -> u64 {
-       let r = self.slots[self.size - 1];
-       self.size -= 1;
-       r
-   }
+    pub fn pop_cell(&mut self) -> u64 {
+        let r = self.slots[self.size - 1];
+        self.size -= 1;
+        r
+    }
 }
 
 // Each frame (§2.6) contains an array of variables known as its local variables. The length of the local variable array of a frame is determined at compile-time and supplied in the binary representation of a class or interface along with the code for the method associated with the frame (§4.7.3).
@@ -141,8 +140,8 @@ impl OpStack {
 pub trait Slots {
     fn set_u32(&mut self, i: usize, v: u32);
     fn get_u32(&self, i: usize) -> u32;
-    
-    fn set_i32(&mut self, i: usize, v: i32) ;
+
+    fn set_i32(&mut self, i: usize, v: i32);
 
     fn get_i32(&self, i: usize) -> i32;
 
@@ -168,8 +167,8 @@ pub trait Slots {
     fn set_f64(&mut self, i: usize, v: f64) {
         self.set_u64(i, v.to_bits());
     }
-    
-    fn get_f64(&self, i: usize) -> f64{
+
+    fn get_f64(&self, i: usize) -> f64 {
         f64::from_bits(self.get_u64(i))
     }
 
@@ -194,7 +193,6 @@ impl Slots for Vec<u64> {
         self[i] as u32 as i32
     }
 
-
     fn get_cell(&self, i: usize) -> u64 {
         self[i]
     }
@@ -209,7 +207,7 @@ mod test {
     use crate::runtime::misc::OpStack;
     use crate::runtime::vm::Jvm;
 
-    use super::{Slots};
+    use super::Slots;
     #[test]
     fn test_local_vars() {
         let mut v: Vec<u64> = vec![0u64; 32];
@@ -231,10 +229,7 @@ mod test {
     #[test]
     fn test_op_stack() {
         let v: Vec<u64> = vec![0u64; 32];
-        let mut s = OpStack {
-            slots: v,
-            size: 0,
-        };
+        let mut s = OpStack { slots: v, size: 0 };
 
         s.push_u32(100);
         s.push_u32(-100i32 as u32);

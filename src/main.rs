@@ -15,10 +15,9 @@ impl Deref for StringErr {
 macro_rules! err {
     ($($arg:tt)*) => {{
         let res = format!($($arg)*);
-       Result::Err(StringErr(res)) 
+       Result::Err(StringErr(res))
     }}
 }
-
 
 macro_rules! im_err {
     ($e: ty) => {
@@ -34,14 +33,14 @@ im_err!(std::io::Error);
 im_err!(FromUtf8Error);
 im_err!(OsString);
 
-mod op;
-mod utils;
 mod attr;
 mod cp;
 mod entry;
-mod runtime;
 mod heap;
 mod ins;
+mod op;
+mod runtime;
+mod utils;
 
 fn main() {
     println!("Hello, world!");

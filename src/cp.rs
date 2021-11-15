@@ -1,16 +1,16 @@
-use core::panic;
 use crate::attr::AttrInfo;
+use core::panic;
 
 pub trait ReadFrom: Sized {
     fn read_from(p: &mut ClassFileParser, cp: &ConstantPool) -> Self;
 
     fn read_vec_from(p: &mut ClassFileParser, cp: &ConstantPool) -> Vec<Self> {
-       let n = p.u16() as usize;
-       let mut v: Vec<Self> = Vec::with_capacity(n);
-       for _ in 0..n {
-           v.push(Self::read_from(p, cp));
-       }
-       v
+        let n = p.u16() as usize;
+        let mut v: Vec<Self> = Vec::with_capacity(n);
+        for _ in 0..n {
+            v.push(Self::read_from(p, cp));
+        }
+        v
     }
 }
 
@@ -67,8 +67,11 @@ impl ReadFrom for MemberInfo {
         let a = p.u16();
         let name_i = p.u16();
         let desc_i = p.u16();
-        let mut m = MemberInfo { 
-            access_flags: a, name_i: name_i, desc_i: desc_i, attrs: Vec::new() ,
+        let mut m = MemberInfo {
+            access_flags: a,
+            name_i: name_i,
+            desc_i: desc_i,
+            attrs: Vec::new(),
             name: cp.utf8(name_i as usize).to_string(),
             desc: cp.utf8(desc_i as usize).to_string(),
         };
@@ -95,33 +98,33 @@ impl ReadFrom for ConstantPool {
             infos.push(ConstantInfo::read_from(parser, cp))
         }
 
-        ConstantPool {
-            infos,
-        }
+        ConstantPool { infos }
     }
 }
 
-macro_rules! cp_member{
+macro_rules! cp_member {
     ($n: ident, $t: path) => {
         // field index -> (class, name, desc)
         pub fn $n(&self, i: usize) -> (&str, &str, &str) {
             let j = match self.infos[i as usize] {
-                $t { class_i, name_type_i } => (class_i, name_type_i),
-                _ => panic!("invalid index")
+                $t {
+                    class_i,
+                    name_type_i,
+                } => (class_i, name_type_i),
+                _ => panic!("invalid index"),
             };
 
             let name_type = match self.infos[j.1 as usize] {
-                ConstantInfo::NameAndType { name_i, desc_i} => (name_i, desc_i),
-                _ => panic!("invalid name type index")
+                ConstantInfo::NameAndType { name_i, desc_i } => (name_i, desc_i),
+                _ => panic!("invalid name type index"),
             };
 
             (
                 self.class(j.0 as usize),
                 self.utf8(name_type.0 as usize),
-                self.utf8(name_type.1 as usize)
+                self.utf8(name_type.1 as usize),
             )
         }
-
     };
 }
 
@@ -129,14 +132,14 @@ impl ConstantPool {
     pub fn utf8(&self, i: usize) -> &str {
         match self.infos[i as usize] {
             ConstantInfo::Utf8(ref a) => &a,
-            _ => panic!("invalid utf8 index")
+            _ => panic!("invalid utf8 index"),
         }
     }
 
     pub fn class(&self, i: usize) -> &str {
         let j = match self.infos[i as usize] {
-            ConstantInfo::Class { name_i} => name_i,
-            _ => panic!("invalid class index")
+            ConstantInfo::Class { name_i } => name_i,
+            _ => panic!("invalid class index"),
         };
         self.utf8(j as usize)
     }
@@ -144,35 +147,35 @@ impl ConstantPool {
     pub fn u32(&self, i: usize) -> u32 {
         match self.infos[i] {
             ConstantInfo::Integer(j) => j as u32,
-            _ => panic!("invalid u32 index found")
+            _ => panic!("invalid u32 index found"),
         }
     }
 
     pub fn f32(&self, i: usize) -> f32 {
         match self.infos[i] {
             ConstantInfo::Float(j) => j,
-            _ => panic!("invalid integer index")
+            _ => panic!("invalid integer index"),
         }
     }
 
     pub fn u64(&self, i: usize) -> u64 {
         match self.infos[i] {
             ConstantInfo::Long(j) => j,
-            _ => panic!("invalid u64 index")
+            _ => panic!("invalid u64 index"),
         }
     }
 
     pub fn f64(&self, i: usize) -> f64 {
         match self.infos[i] {
             ConstantInfo::Double(j) => j,
-            _ => panic!("invalid f64 index")
+            _ => panic!("invalid f64 index"),
         }
     }
 
     pub fn string(&self, i: usize) -> &str {
         let j = match self.infos[i as usize] {
-            ConstantInfo::String { utf8_i}  => utf8_i as usize,
-            _ => panic!("invalid string index")
+            ConstantInfo::String { utf8_i } => utf8_i as usize,
+            _ => panic!("invalid string index"),
         };
         self.utf8(j as usize)
     }
@@ -197,14 +200,14 @@ pub enum ConstantInfo {
     Utf8(String),
     String {
         // index refers to utf8
-        utf8_i: u16
+        utf8_i: u16,
     },
-    Class { 
+    Class {
         // index refers to utf8
-        name_i: u16 
+        name_i: u16,
     },
     NameAndType {
-        // index refers to utf8 
+        // index refers to utf8
         // name of field or method
         name_i: u16,
         // index refers to utf8
@@ -212,7 +215,7 @@ pub enum ConstantInfo {
         // for basic type: byte,short,char,int,long,float,double -> B,S,C,I,J,F,D
         // reference type starts with L, ends wiht ';' , e.g. Ljava.lang.Object;
         // array starts with [, e.g. [I -> int[]
-        // 
+        //
         desc_i: u16,
     },
     // field reference
@@ -272,7 +275,7 @@ impl ReadFrom for ConstantInfo {
                 class_i: p.u16(),
                 name_type_i: p.u16(),
             },
-            _ => panic!("unknown tag {}", tag)
+            _ => panic!("unknown tag {}", tag),
         }
     }
 }
@@ -280,18 +283,18 @@ impl ReadFrom for ConstantInfo {
 mod ct_info_tag {
     pub const CLASS: u8 = 7;
     pub const FIELD_REF: u8 = 9;
-    pub const METHOD_REF:u8 = 10;
-    pub const INTERFACE_METHOD_REF:u8 = 11;
-    pub const STRING:u8 = 8;
-    pub const INTEGER:u8 = 3;
-    pub const FLOAT:u8 = 4;
-    pub const LONG:u8 = 5;
-    pub const DOUBLE:u8 = 6;
-    pub const NAME_AND_TYPE:u8 = 12;
-    pub const UTF8:u8 = 1;
-    pub const METHOD_HANDLE:u8 = 15;
-    pub const METHOD_TYPE:u8 = 16;
-    pub const INVOKE_DYNAMIC:u8 = 18;
+    pub const METHOD_REF: u8 = 10;
+    pub const INTERFACE_METHOD_REF: u8 = 11;
+    pub const STRING: u8 = 8;
+    pub const INTEGER: u8 = 3;
+    pub const FLOAT: u8 = 4;
+    pub const LONG: u8 = 5;
+    pub const DOUBLE: u8 = 6;
+    pub const NAME_AND_TYPE: u8 = 12;
+    pub const UTF8: u8 = 1;
+    pub const METHOD_HANDLE: u8 = 15;
+    pub const METHOD_TYPE: u8 = 16;
+    pub const INVOKE_DYNAMIC: u8 = 18;
 }
 
 impl ClassFile {
@@ -306,7 +309,7 @@ impl ClassFile {
 
         // 常量池
         c.cp = ConstantPool::read_from(&mut p, &c.cp);
-        // 类访问标志, 类索引, 超类索引, 接口索引 
+        // 类访问标志, 类索引, 超类索引, 接口索引
         c.access_flags = p.u16();
         c.this_class_i = p.u16();
         c.super_class_i = p.u16();
@@ -323,7 +326,7 @@ impl ClassFile {
     // name of this class
     pub fn this_class(&self) -> &str {
         self.cp.class(self.this_class_i as usize)
-    } 
+    }
 
     // name of super class, return "" if no super class
     pub fn super_class(&self) -> &str {
@@ -333,7 +336,7 @@ impl ClassFile {
             self.cp.class(self.super_class_i as usize)
         }
     }
-    
+
     pub fn interface_len(&self) -> usize {
         self.interfaces_i.len()
     }
@@ -359,16 +362,13 @@ macro_rules! cp_u_n {
             let mut b = [0u8; $w];
             b.copy_from_slice(s);
             $a::from_be_bytes(b)
-       } 
+       }
     };
 }
 
 impl ClassFileParser {
     pub fn new(bin: Vec<u8>) -> ClassFileParser {
-        let c = ClassFileParser {
-            bin: bin,
-            off: 0,
-        };
+        let c = ClassFileParser { bin: bin, off: 0 };
         c
     }
 
@@ -389,13 +389,12 @@ impl ClassFileParser {
     }
 }
 
-
 #[cfg(test)]
 mod test {
-    use std::path::{Path, PathBuf};
+    use std::fs;
     use std::fs::File;
     use std::io::Read;
-    use std::fs;
+    use std::path::{Path, PathBuf};
 
     use crate::entry::{DirEntry, Entry};
 

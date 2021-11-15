@@ -1,56 +1,44 @@
 use crate::ins::Load;
 use crate::op::OpCode;
-use crate::runtime::{misc::BytesReader, vm::JThread, vm::JFrame};
-use std::rc::Rc;
+use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
 use std::cell::RefCell;
+use std::rc::Rc;
 
 macro_rules! xload {
-    ($rd: ident, $mf: ident, $gt: ident, $pt: ident, $wd: expr) => {
-        {
-                let i = if $wd { $rd.u16() as usize } else { $rd.u8() as usize };
-                let v = {
-                        $mf.local_vars.$gt(i)
-                };
-                $mf.stack.$pt(v);
-            }
-    };
+    ($rd: ident, $mf: ident, $gt: ident, $pt: ident, $wd: expr) => {{
+          let i = if $wd {
+            $rd.u16() as usize
+        } else {
+            $rd.u8() as usize
+        };
+        let v = { $mf.local_vars.$gt(i) };
+        $mf.stack.$pt(v);
+    }};
 }
 
 macro_rules! iload_n {
-    ($mf: ident, $n: expr) => {
-       {
-            let v = {
-                    $mf.local_vars.get_u32($n)
-            };
-            $mf.stack.push_u32(v);
-       } 
-    };
+    ($mf: ident, $n: expr) => {{
+        let v = { $mf.local_vars.get_u32($n) };
+        $mf.stack.push_u32(v);
+    }};
 }
 
 macro_rules! aload_n {
-    ($mf: ident, $n: expr) => {
-       {
-            let v = {
-                    $mf.local_vars.get_cell($n)
-            };
-            $mf.stack.push_cell(v);
-       } 
-    };
+    ($mf: ident, $n: expr) => {{
+        let v = { $mf.local_vars.get_cell($n) };
+        $mf.stack.push_cell(v);
+    }};
 }
 
 macro_rules! lload_n {
-    ($mf: ident, $n: expr) => {
-       {
-            let v = {
-                    $mf.local_vars.get_u64($n)
-            };
-            $mf.stack.push_u64(v);
-       } 
-    };
+    ($mf: ident, $n: expr) => {{
+        let v = { $mf.local_vars.get_u64($n) };
+        $mf.stack.push_u64(v);
+    }};
 }
 
 impl Load for OpCode {
-    fn load(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>, w: bool) {
+    fn load(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>, w: bool) {
         use crate::op::OpCode::*;
         use crate::runtime::misc::Slots;
         let mut mf = frame.borrow_mut();
@@ -59,7 +47,7 @@ impl Load for OpCode {
             iload | fload => xload!(rd, mf, get_u32, push_u32, w),
             lload | dload => xload!(rd, mf, get_u64, push_u64, w),
             aload => xload!(rd, mf, get_cell, push_cell, w),
-            
+
             iload_0 | fload_0 => iload_n!(mf, 0),
             iload_1 | fload_1 => iload_n!(mf, 1),
             iload_2 | fload_2 => iload_n!(mf, 2),
@@ -74,7 +62,7 @@ impl Load for OpCode {
             aload_1 => aload_n!(mf, 1),
             aload_2 => aload_n!(mf, 2),
             aload_3 => aload_n!(mf, 3),
-            _ => panic!("invalid op {:?}", self)
+            _ => panic!("invalid op {:?}", self),
         };
     }
 }

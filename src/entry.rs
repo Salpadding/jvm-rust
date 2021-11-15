@@ -1,9 +1,9 @@
+use crate::utils;
 use std::fmt::Write;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use crate::utils;
 
 use crate::StringErr;
 
@@ -14,7 +14,7 @@ pub trait Entry: std::fmt::Debug {
 
 #[derive(Debug)]
 pub struct DirEntry {
-    abs_dir: String
+    abs_dir: String,
 }
 
 impl DirEntry {
@@ -27,9 +27,7 @@ impl DirEntry {
             return err!("DirEntry::new {} is not a directory", dir);
         }
 
-        let r = Self {
-            abs_dir: p
-        };
+        let r = Self { abs_dir: p };
         Ok(r)
     }
 }
@@ -55,7 +53,6 @@ impl Entry for DirEntry {
     }
 }
 
-
 #[derive(Debug)]
 pub struct ZipEntry {
     // path for zip
@@ -63,7 +60,7 @@ pub struct ZipEntry {
 }
 
 impl ZipEntry {
-    fn new(path: &str) -> Result<ZipEntry, StringErr>{
+    fn new(path: &str) -> Result<ZipEntry, StringErr> {
         let m = fs::metadata(path)?;
         if !m.is_file() {
             return err!("create zip entry failed: {} is not a regular file", path);
@@ -76,38 +73,37 @@ impl ZipEntry {
     }
 }
 
-
 impl Entry for ZipEntry {
     fn read_class(&self, name: &str) -> Option<Vec<u8>> {
-       let full_name = format!("{}.class", name);
-       let file = File::open(&self.zip);
-       if file.is_err() {
-           return None;
-       }
+        let full_name = format!("{}.class", name);
+        let file = File::open(&self.zip);
+        if file.is_err() {
+            return None;
+        }
 
-       let file = file.unwrap();
-       let archive = zip::ZipArchive::new(file);
+        let file = file.unwrap();
+        let archive = zip::ZipArchive::new(file);
 
-       if archive.is_err() {
-           return None;
-       }
-       let mut archive = archive.unwrap();
+        if archive.is_err() {
+            return None;
+        }
+        let mut archive = archive.unwrap();
 
-       for i in 0..archive.len() {
-           let mut file = archive.by_index(i).unwrap();
-           if file.name() !=  &full_name {
-               continue;
-           }
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i).unwrap();
+            if file.name() != &full_name {
+                continue;
+            }
 
-           // file found
-           // read all from file
-           let mut r: Vec<u8> = Vec::new();
-           file.read_to_end(&mut r).unwrap();
+            // file found
+            // read all from file
+            let mut r: Vec<u8> = Vec::new();
+            file.read_to_end(&mut r).unwrap();
 
-           return Some(r);
-       }
+            return Some(r);
+        }
 
-       return None;
+        return None;
     }
 }
 
@@ -119,8 +115,10 @@ impl Entry for CompositeEntry {
     fn read_class(&self, name: &str) -> Option<Vec<u8>> {
         for e in self.children.iter() {
             match e.read_class(name) {
-                Some(v) => { return Some(v); }
-                None => continue, 
+                Some(v) => {
+                    return Some(v);
+                }
+                None => continue,
             }
         }
         None
@@ -171,8 +169,11 @@ impl CompositeEntry {
                 continue;
             }
 
-            let n = Path::new(&trim).join(d.file_name()).into_os_string().into_string()?;
-            if  n.ends_with(".jar") || n.ends_with(".JAR") {
+            let n = Path::new(&trim)
+                .join(d.file_name())
+                .into_os_string()
+                .into_string()?;
+            if n.ends_with(".jar") || n.ends_with(".JAR") {
                 let e = ZipEntry::new(&n)?;
                 children.push(Box::new(e));
             }
@@ -196,7 +197,11 @@ pub fn new_entry(path: &str) -> Result<Box<dyn Entry>, StringErr> {
     }
 
     // if ends with .zip .jar .ZIP .JAR
-    if path.ends_with(".zip") || path.ends_with(".jar") || path.ends_with(".ZIP") || path.ends_with(".JAR") {
+    if path.ends_with(".zip")
+        || path.ends_with(".jar")
+        || path.ends_with(".ZIP")
+        || path.ends_with(".JAR")
+    {
         let d = ZipEntry::new(path)?;
         return Ok(Box::new(d));
     }
@@ -206,7 +211,7 @@ pub fn new_entry(path: &str) -> Result<Box<dyn Entry>, StringErr> {
 }
 
 #[cfg(test)]
-mod test{
+mod test {
     use super::Entry;
 
     #[test]

@@ -1,5 +1,5 @@
-use std::path::{self, Path};
 use std::io::Read;
+use std::path::{self, Path};
 
 pub fn read_file<P: AsRef<Path>>(path: P) -> Option<Vec<u8>> {
     use std::fs;

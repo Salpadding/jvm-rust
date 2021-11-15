@@ -1,31 +1,27 @@
 use crate::ins::Conversion;
 use crate::op::OpCode;
-use crate::runtime::{misc::BytesReader, vm::JThread, vm::JFrame};
-use std::rc::Rc;
+use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
 use std::cell::RefCell;
+use std::rc::Rc;
 
 macro_rules! cv {
-    ($mf: ident, $p: ident, $psh: ident, $t: ty) => {
-       {
-           let v = $mf.stack.$p();
-           let c = v as $t;
-           $mf.stack.$psh(c);
-       } 
-    };
+    ($mf: ident, $p: ident, $psh: ident, $t: ty) => {{
+        let v = $mf.stack.$p();
+        let c = v as $t;
+        $mf.stack.$psh(c);
+    }};
 }
 
 macro_rules! i2x {
-    ($mf: ident, $t: ty) => {
-       {
-           let v = $mf.stack.pop_i32();
-           let c = v as $t;
-           $mf.stack.push_i32(c as $t as i32);
-       } 
-    };
+    ($mf: ident, $t: ty) => {{
+        let v = $mf.stack.pop_i32();
+        let c = v as $t;
+        $mf.stack.push_i32(c as $t as i32);
+    }};
 }
 
 impl Conversion for OpCode {
-    fn conv(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>) {
+    fn conv(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>) {
         use crate::op::OpCode::*;
         let mut mf = frame.borrow_mut();
 

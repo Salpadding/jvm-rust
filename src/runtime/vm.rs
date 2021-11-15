@@ -2,7 +2,7 @@ use std::{cell::RefCell, cell::Ref};
 use std::rc::Rc;
 
 use crate::StringErr;
-use crate::heap::{Class, ClassLoader, ClassMember, Heap, SymRef};
+use crate::heap::{Class, ClassLoader, ClassMember, Heap, Object, SymRef};
 use crate::runtime::misc::{BytesReader, Slots, OpStack};
 
 const MAX_JSTACK_SIZE: usize = 1024;
@@ -182,4 +182,8 @@ impl JFrame {
 
     xx_ref!(class_ref);
     xx_ref!(field_ref);
+
+    pub fn new_obj(&self, class: Rc<RefCell<Class>>) -> Box<Object> {
+        self.heap.borrow().new_obj(class)
+    }
 }
