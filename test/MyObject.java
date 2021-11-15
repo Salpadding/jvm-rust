@@ -11,5 +11,10 @@ public class MyObject {
 
         myObj.instanceVar = 1;
         x = myObj.instanceVar;
+
+        boolean b = myObj instanceof MyObject;
+        boolean c = myObj instanceof java.lang.Object;
+        Object d = (Object) myObj;
+        MyObject e = (MyObject) d;
     }
 }

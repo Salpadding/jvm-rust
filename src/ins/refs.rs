@@ -27,7 +27,7 @@ impl Refs for OpCode {
                 rd.u16();
                 frame.borrow_mut().stack.pop_cell();
             }
-            instanceof => {
+            instanceof | checkcast => {
                 let i = rd.u16() as usize;
                 let sym = frame.borrow().class_ref(i);
                 let o = frame.borrow_mut().stack.pop_cell();
@@ -40,7 +40,22 @@ impl Refs for OpCode {
                     Object::forget(o);
                     b
                 };
-                frame.borrow_mut().stack.push_u32(if is { 1 } else { 0 });
+
+                if self == instanceof {
+                    frame.borrow_mut().stack.push_u32(if is { 1 } else { 0 });
+                    return;
+                }
+
+                if !is {
+                    let o = if o == 0 {
+                        "null".to_string()
+                    } else {
+                        Object::from_ptr(o).class.borrow().name.clone()
+                    };
+                    panic!("cannot cast object {} to {}", o, sym.name);
+                }
+
+                frame.borrow_mut().stack.push_cell(o);
             }
             putstatic | getstatic | putfield | getfield => {
                 let i = rd.u16() as usize;
