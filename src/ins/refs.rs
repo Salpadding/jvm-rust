@@ -103,3 +103,22 @@ impl Refs for OpCode {
         };
     }
 }
+
+#[cfg(test)]
+mod test{
+    use std::borrow::Cow;
+
+    #[test]
+    fn test_cow() {
+        let abc = "affdsfdsf".to_string();
+        let mut cc: Cow<str> = Cow::from(abc);
+        modify(cc.to_mut());
+        println!("{:?}", cc);
+    }
+
+
+    fn modify(s: &mut str) {
+        let m = s.as_mut_ptr();
+        unsafe { *m = b'b' }
+    }
+}
