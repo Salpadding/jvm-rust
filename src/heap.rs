@@ -83,7 +83,7 @@ pub struct Class {
     pub ins_fields: Vec<Rc<ClassMember>>,
 
     // runtime loaded symbols
-    pub sym_refs: Vec<Option<SymRef>>,
+    pub sym_refs: Vec<Option<Rc<SymRef>>>,
 }
 
 impl Class {
@@ -100,6 +100,14 @@ impl Class {
         self.fields.iter().filter(|x| x.access_flags.is_static()).count()
     }
 
+    fn field_index(&self, f: &str) -> usize{
+        let  p = self.static_fields.iter().map(|x| &x.name).position(|x| x == f);
+        if p.is_some() {
+            return p.unwrap();
+        }
+        self.ins_fields.iter().map(|x| &x.name).position(|x| x == f).unwrap()
+    }
+
     fn count_ins_fields(&self) -> usize {
         let base = match self.super_class {
             None => 0,
@@ -112,50 +120,24 @@ impl Class {
         self.ins_fields[i].clone()
     }
 
-    pub fn set_static(&mut self, field: &str, v: u64) {
-        for i in 0..self.static_fields.len() {
-            let f = &self.static_fields[i];
-
-            if &f.name == field {
-                self.static_vars[i] = v;
-            }
-        }
-
+    pub fn set_static(&mut self, i: usize, v: u64) {
+        self.static_vars[i] = v;
+        println!("set field {} of class {}", self.static_fields[i].name, self.name);
         println!("static vars of class {} = {:?}", self.name, self.static_vars);
     }
 
-    pub fn set_instance(&self, obj: &mut Object, field: &str, v: u64) {
-        for i in 0..self.ins_fields.len() {
-            let f = &self.ins_fields[i];
-
-            if &f.name == field {
-                obj.fields[i] = v;
-            }
-        }
-        println!("set field {} of class {}", field, self.name);
+    pub fn set_instance(&self, obj: &mut Object, i: usize, v: u64) {
+        obj.fields[i] = v;
+        println!("set field {} of class {}", self.ins_fields[i].name, self.name);
         println!("instance vars of class {} = {:?}", self.name, obj.fields);
     }
 
-    pub fn get_static(&self, field: &str) -> u64 {
-        for i in 0..self.static_fields.len() {
-            let f = &self.static_fields[i];
-
-            if &f.name == field {
-                return self.static_vars[i];
-            }
-        }
-        return 0;
+    pub fn get_static(&self, i: usize) -> u64 {
+        self.static_vars[i]
     }
 
-    pub fn get_instance(&self, obj: &Object, field: &str) -> u64 {
-        for i in 0..self.ins_fields.len() {
-            let f = &self.ins_fields[i];
-
-            if &f.name == field {
-                return obj.fields[i];
-            }
-        }
-        return 0;
+    pub fn get_instance(&self, obj: &Object, i: usize) -> u64 {
+        obj.fields[i]
     }
 
     fn init_finals(&mut self) {
@@ -331,9 +313,9 @@ impl Heap {
         )
     }
 
-    pub fn class_ref<'a> (&mut self, cur: &'a mut Class, i: usize) -> &'a SymRef {
+    pub fn class_ref(&mut self, cur: &mut Class, i: usize) -> Rc<SymRef> {
         match cur.sym_refs[i] {
-            Some(_) => { return cur.sym_refs[i].as_ref().unwrap(); }
+            Some(_) => { return cur.sym_refs[i].as_ref().unwrap().clone(); }
             _ => {}
         };
 
@@ -346,13 +328,13 @@ impl Heap {
             field_i: 0,
         };
 
-        cur.sym_refs[i] = Some(sym);
-        cur.sym_refs[i].as_ref().unwrap()
+        cur.sym_refs[i] = Some(Rc::new(sym));
+        cur.sym_refs[i].as_ref().unwrap().clone()
     }
 
-    pub fn field_ref<'a>(&mut self, cur: &'a mut Class, i: usize) -> &'a SymRef{
+    pub fn field_ref(&mut self, cur: &mut Class, i: usize) -> Rc<SymRef> {
         match cur.sym_refs[i] {
-            Some(_) => { return cur.sym_refs[i].as_ref().unwrap(); }
+            Some(_) => { return cur.sym_refs[i].as_ref().unwrap().clone(); }
             _ => {}
         };
 
@@ -365,15 +347,21 @@ impl Heap {
             field_i: 0,
         };
 
-        cur.sym_refs[i] = Some(sym);
-        cur.sym_refs[i].as_ref().unwrap()
+        if &cur.name == class_name {
+            sym.field_i = cur.field_index(name);
+        } else {
+           sym.field_i = class.borrow().field_index(name);
+        }
+
+        cur.sym_refs[i] = Some(Rc::new(sym));
+        cur.sym_refs[i].as_ref().unwrap().clone()
     }
 
-    pub fn method_ref<'a>(&mut self, cur: &'a mut Class, i: usize) -> &'a SymRef {
+    pub fn method_ref(&mut self, cur: &mut Class, i: usize) -> Rc<SymRef> {
         todo!()
     }
     
-    pub fn iface_ref<'a>(&mut self, cur: &'a mut Class, i: usize) -> &'a SymRef {
+    pub fn iface_ref(&mut self, cur: &mut Class, i: usize) -> Rc<SymRef> {
         todo!()
     }
 

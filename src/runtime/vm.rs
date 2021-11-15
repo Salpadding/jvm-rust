@@ -2,7 +2,7 @@ use std::{cell::RefCell, cell::Ref};
 use std::rc::Rc;
 
 use crate::StringErr;
-use crate::heap::{Class, ClassLoader, ClassMember, Heap};
+use crate::heap::{Class, ClassLoader, ClassMember, Heap, SymRef};
 use crate::runtime::misc::{BytesReader, Slots, OpStack};
 
 const MAX_JSTACK_SIZE: usize = 1024;
@@ -156,6 +156,19 @@ pub struct JFrame {
     pub heap: Rc<RefCell<Heap>>,
 }
 
+macro_rules! xx_ref {
+    ($f: ident) => {
+        pub fn $f(&self, i: usize) -> Rc<SymRef> {
+            let mut cur = self.class.borrow_mut();
+            let sym = {
+                let mut heap = self.heap.borrow_mut();
+                heap.$f(&mut cur, i)
+            };
+            sym
+        }
+    };
+}
+
 impl JFrame {
     pub fn new(heap: Rc<RefCell<Heap>>, class: Rc<RefCell<Class>>, method: Rc<ClassMember>) -> Self {
         Self {
@@ -167,5 +180,6 @@ impl JFrame {
         }
     }
 
-
+    xx_ref!(class_ref);
+    xx_ref!(field_ref);
 }

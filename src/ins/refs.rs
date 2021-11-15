@@ -14,18 +14,11 @@ impl Refs for OpCode {
                 let i = rd.u16() as usize;
 
                 let ptr = {
-                    let f = frame.borrow();
-
-                    let class = {
-                        let mut cur = f.class.borrow_mut();
-                        let sym = {
-                            let mut heap = th.heap.borrow_mut();
-                            heap.class_ref(&mut cur, i)
-                        };
-                        sym.class.clone()
+                    let sym = {
+                        frame.borrow().class_ref(i)
                     };
 
-                    let ptr = th.heap.borrow().new_object(class);
+                    let ptr = th.heap.borrow().new_object(sym.class.clone());
                     ptr
                 };
 
@@ -38,32 +31,25 @@ impl Refs for OpCode {
             }
             putstatic | getstatic | putfield | getfield => {
                 let i = rd.u16() as usize;
-                let mut mf = frame.borrow_mut();
-                let sym = {
-                    let mut cur = mf.class.borrow_mut();
-                    let sym = {
-                        let mut heap = th.heap.borrow_mut();
-                        heap.field_ref(&mut cur, i)
-                    };
-                    sym.clone()
-                };
+                let sym = frame.borrow().field_ref(i);
 
+                let mut mf = frame.borrow_mut();
                 let mut class = sym.class.borrow_mut();
 
                 match sym.desc.as_bytes()[0] {
                     b'Z' | b'B' | b'C' | b'S' | b'I' | b'F' => {
                         match self {
-                            putstatic => class.set_static(&sym.name, mf.stack.pop_u32() as u64),
-                            getstatic => mf.stack.push_u32(class.get_static(&sym.name) as u32),
+                            putstatic => class.set_static(sym.field_i, mf.stack.pop_u32() as u64),
+                            getstatic => mf.stack.push_u32(class.get_static(sym.field_i) as u32),
                             putfield => {
                                 let v = mf.stack.pop_u32();
                                 let mut obj = Object::from_ptr(mf.stack.pop_cell());
-                                class.set_instance(&mut obj, &sym.name, v as u64);
+                                class.set_instance(&mut obj, sym.field_i, v as u64);
                                 Object::forget(obj);
                             },
                             getfield => {
                                 let obj = Object::from_ptr(mf.stack.pop_cell());
-                                let v = class.get_instance(&obj, &sym.name);
+                                let v = class.get_instance(&obj, sym.field_i);
                                 mf.stack.push_u32(v as u32);
                                 Object::forget(obj);
                             }
@@ -72,17 +58,17 @@ impl Refs for OpCode {
                     },
                     b'D' | b'J' => {
                         match self {
-                            putstatic => class.set_static(&sym.name, mf.stack.pop_u64() as u64),
-                            getstatic => mf.stack.push_u64(class.get_static(&sym.name)),
+                            putstatic => class.set_static(sym.field_i, mf.stack.pop_u64() as u64),
+                            getstatic => mf.stack.push_u64(class.get_static(sym.field_i)),
                             putfield => {
                                 let v = mf.stack.pop_u64();
                                 let mut obj = Object::from_ptr(mf.stack.pop_cell());
-                                class.set_instance(&mut obj, &sym.name, v);
+                                class.set_instance(&mut obj, sym.field_i, v);
                                 Object::forget(obj);
                             }
                             getfield => {
                                 let obj = Object::from_ptr(mf.stack.pop_cell());
-                                let v = class.get_instance(&obj, &sym.name);
+                                let v = class.get_instance(&obj, sym.field_i);
                                 mf.stack.push_u64(v);
                                 Object::forget(obj);
                             }
@@ -91,17 +77,17 @@ impl Refs for OpCode {
                     }
                     b'L' | b'[' => {
                         match self {
-                            putstatic => class.set_static(&sym.name, mf.stack.pop_cell()),
-                            getstatic => mf.stack.push_cell(class.get_static(&sym.name)),
+                            putstatic => class.set_static(sym.field_i, mf.stack.pop_cell()),
+                            getstatic => mf.stack.push_cell(class.get_static(sym.field_i)),
                             putfield => {
                                 let v = mf.stack.pop_cell();
                                 let mut obj = Object::from_ptr(mf.stack.pop_cell());
-                                class.set_instance(&mut obj, &sym.name, v);
+                                class.set_instance(&mut obj, sym.field_i, v);
                                 Object::forget(obj);
                             }
                             getfield => {
                                 let obj = Object::from_ptr(mf.stack.pop_cell());
-                                let v = class.get_instance(&obj, &sym.name);
+                                let v = class.get_instance(&obj, sym.field_i);
                                 mf.stack.push_cell(v);
                                 Object::forget(obj);
                             }
