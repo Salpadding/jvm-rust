@@ -1,8 +1,6 @@
 use crate::ins::Conversion;
 use crate::op::OpCode;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
-use std::cell::RefCell;
-use std::rc::Rc;
 
 macro_rules! cv {
     ($mf: ident, $p: ident, $psh: ident, $t: ty) => {{
@@ -21,9 +19,8 @@ macro_rules! i2x {
 }
 
 impl Conversion for OpCode {
-    fn conv(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>) {
+    fn conv(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame) {
         use crate::op::OpCode::*;
-        let mut mf = frame.borrow_mut();
 
         match self {
             i2l => cv!(mf, pop_i32, push_i64, i64),

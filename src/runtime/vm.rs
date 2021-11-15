@@ -1,46 +1,42 @@
-use std::{cell::RefCell, cell::Ref};
-use std::rc::Rc;
-
 use crate::StringErr;
-use crate::heap::{Class, ClassLoader, ClassMember, Heap, Object, SymRef};
-use crate::runtime::misc::{BytesReader, Slots, OpStack};
-
+use crate::heap::{Class, ClassMember, Heap, Object, SymRef};
+use crate::runtime::misc::{BytesReader, OpStack};
+use crate::rp::Rp;
 const MAX_JSTACK_SIZE: usize = 1024;
 
 
 // jvm runtime representation
 #[derive(Debug)]
 pub struct Jvm {
-    heap: Rc<RefCell<Heap>>,
+    heap: Rp<Heap>,
     thread: JThread,
 }
 
 impl Jvm {
     pub fn new(cp: &str) -> Result<Self, StringErr> {
         let heap = Heap::new(cp)?;
-        let heap = Rc::new(RefCell::new(heap));
+        let p = Rp::new(heap);
         Ok(
             Jvm {
-                heap: heap.clone(),
-                thread: JThread::new(heap),
+                heap: p,
+                thread: JThread::new(p),
             }
         )
     }
 
     pub fn run_class(&mut self, c: &str) -> Result<(), StringErr> {
         // load class
-        let c = {
-            let mut h = self.heap.borrow_mut();
-            h.loader.load(c)
-        };
+        let c = 
+            self.heap.loader.load(c);
 
         // get main method
-        let main = c.borrow().main_method();
-        if main.is_none() {
-            return err!("class {} has no main method", &c.borrow().name);
+        let main = c.main_method();
+
+        if main.is_null() {
+            return err!("class {} has no main method", &c.name);
         }
 
-        self.thread.stack.push_frame(JFrame::new(self.heap.clone(), c, main.unwrap()));
+        self.thread.stack.push_frame(JFrame::new(self.heap, c, main));
         self.thread.run();
 
         Ok(())
@@ -53,7 +49,7 @@ pub struct JThread {
     pub pc: i32,
     pub stack: JStack,
     pub next_pc: Option<i32>,
-    pub heap: Rc<RefCell<Heap>>,
+    pub heap: Rp<Heap>,
 }
 
 impl JThread {
@@ -63,7 +59,7 @@ impl JThread {
 }
 
 impl JThread {
-    pub fn new(heap: Rc<RefCell<Heap>>) -> Self {
+    pub fn new(heap: Rp<Heap>) -> Self {
         Self {
             heap,
             pc: 0,
@@ -72,7 +68,7 @@ impl JThread {
         }
     }
 
-    pub fn cur_frame(&self) -> Rc<RefCell<JFrame>> {
+    pub fn cur_frame(&self) -> Rp<JFrame> {
         self.stack.cur_frame()
     }
 
@@ -81,10 +77,7 @@ impl JThread {
         use crate::ins::Ins;
         while !self.stack.is_empty() {
             let f = self.cur_frame();
-            let method = {
-                let b: Ref<JFrame> = RefCell::borrow(&*f);
-                b.method.clone()
-            };
+            let method = f.method;
             self.next_pc = None;
             let mut rd = BytesReader {
                 bytes: &method.code,
@@ -96,9 +89,9 @@ impl JThread {
             // wide
             if op == 0xc4 {
                 let op: u8 = rd.u8();
-                op.step(&mut rd, self, f, true);
+                op.step(&mut rd, self, f.get_mut(), true);
             } else {
-                op.step(&mut rd, self, f, false);
+                op.step(&mut rd, self, f.get_mut(), false);
             }
 
             match self.next_pc {
@@ -113,7 +106,7 @@ impl JThread {
 #[derive(Debug, Default)]
 pub struct JStack {
     pub max_size: usize,
-    pub frames: Vec<Option<Rc<RefCell<JFrame>>>>,
+    pub frames: Vec<Rp<JFrame>>,
     pub size: usize,
 }
 
@@ -121,24 +114,24 @@ impl JStack {
     fn new() -> Self {
         Self {
             max_size: MAX_JSTACK_SIZE,
-            frames: vec![None; MAX_JSTACK_SIZE],
+            frames: vec![Rp::null(); MAX_JSTACK_SIZE],
             size: 0,
         }
     }
 
     fn push_frame(&mut self, frame: JFrame) {
-        self.frames[self.size] = Some(Rc::new(RefCell::new(frame)));
+        self.frames[self.size] = Rp::new(frame);
         self.size += 1;
     }
 
-    pub fn pop_frame(&mut self) -> Rc<RefCell<JFrame>> {
-        let top = self.frames[self.size - 1].as_ref().unwrap().clone();
+    pub fn pop_frame(&mut self) -> Rp<JFrame> {
+        let top = self.frames[self.size - 1];
         self.size -= 1;
         top
     }
 
-    fn cur_frame(&self) -> Rc<RefCell<JFrame>> {
-        self.frames[self.size - 1].as_ref().unwrap().clone()
+    fn cur_frame(&self) -> Rp<JFrame> {
+        self.frames[self.size - 1]
     }
 
     fn is_empty(&self) -> bool {
@@ -151,18 +144,17 @@ impl JStack {
 pub struct JFrame {
     pub local_vars: Vec<u64>,
     pub stack: OpStack,
-    pub method: Rc<ClassMember>,
-    pub class: Rc<RefCell<Class>>,
-    pub heap: Rc<RefCell<Heap>>,
+    pub method: Rp<ClassMember>,
+    pub class: Rp<Class>,
+    pub heap: Rp<Heap>,
 }
 
 macro_rules! xx_ref {
     ($f: ident) => {
-        pub fn $f(&self, i: usize) -> Rc<SymRef> {
-            let mut cur = self.class.borrow_mut();
+        pub fn $f(&mut self, i: usize) -> Rp<SymRef> {
+            let mut cur = self.class.get_mut();
             let sym = {
-                let mut heap = self.heap.borrow_mut();
-                heap.$f(&mut cur, i)
+                self.heap.$f(&mut cur, i)
             };
             sym
         }
@@ -170,7 +162,7 @@ macro_rules! xx_ref {
 }
 
 impl JFrame {
-    pub fn new(heap: Rc<RefCell<Heap>>, class: Rc<RefCell<Class>>, method: Rc<ClassMember>) -> Self {
+    pub fn new(heap: Rp<Heap>, class: Rp<Class>, method: Rp<ClassMember>) -> Self {
         Self {
             local_vars: vec![0u64; method.max_locals],
             stack: OpStack { slots: vec![0u64; method.max_stack], size: 0 },
@@ -183,7 +175,7 @@ impl JFrame {
     xx_ref!(class_ref);
     xx_ref!(field_ref);
 
-    pub fn new_obj(&self, class: Rc<RefCell<Class>>) -> Box<Object> {
-        self.heap.borrow().new_obj(class)
+    pub fn new_obj(&self, class: Rp<Class>) -> Rp<Object> {
+        self.heap.new_obj(class)
     }
 }

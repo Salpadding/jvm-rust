@@ -1,3 +1,6 @@
+use crate::heap::Object;
+use crate::rp::Rp;
+
 pub struct BytesReader<'a> {
     pub bytes: &'a [u8],
     pub pc: i32,
@@ -128,6 +131,14 @@ impl OpStack {
         let r = self.slots[self.size - 1];
         self.size -= 1;
         r
+    }
+
+    pub fn pop_obj(&mut self) -> Rp<Object> {
+        Rp::from_ptr(self.pop_cell() as usize)
+    }
+
+    pub fn push_obj(&mut self, obj: Rp<Object>) {
+        self.push_cell(obj.ptr() as u64)
     }
 }
 

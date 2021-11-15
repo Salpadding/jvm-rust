@@ -2,8 +2,6 @@ use crate::ins::Math;
 use crate::op::OpCode;
 use crate::runtime::misc::Slots;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
-use std::cell::RefCell;
-use std::rc::Rc;
 
 macro_rules! b_op {
     ($mf: ident, $p: ident, $psh: ident, $f: ident) => {{
@@ -65,10 +63,9 @@ macro_rules! sh {
 }
 
 impl Math for OpCode {
-    fn math(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>, w: bool) {
+    fn math(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame, w: bool) {
         use crate::op::OpCode::*;
         use core::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Rem, Shl, Shr, Sub};
-        let mut mf = frame.borrow_mut();
 
         match self {
             iadd => b_i32!(mf, unchecked_add),

@@ -1,8 +1,6 @@
 use crate::ins::Constant;
 use crate::op::OpCode;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
-use std::cell::RefCell;
-use std::rc::Rc;
 
 trait Ldc {
     fn _ldc(self, rd:&mut BytesReader, f: &mut JFrame);
@@ -16,7 +14,7 @@ impl Ldc for OpCode {
             _ => rd.u16() as usize,
         };
 
-        let (c, w) = f.class.borrow().cp.cell(i);
+        let (c, w) = f.class.cp.cell(i);
 
         if (self == ldc || self == ldc_w) && !w {
 
@@ -34,9 +32,8 @@ impl Ldc for OpCode {
 }
 
 impl Constant for OpCode {
-    fn con(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>) {
+    fn con(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame) {
         use crate::op::OpCode::*;
-        let mut mf = frame.borrow_mut();
 
         match self {
             nop => {}
@@ -69,7 +66,7 @@ impl Constant for OpCode {
                 mf.stack.push_u32(i as i16 as i32 as u32);
             }
 
-            ldc | ldc_w | ldc2_w => self._ldc(rd, &mut mf),
+            ldc | ldc_w | ldc2_w => self._ldc(rd, mf),
             _ => {
                 panic!("invalid op {:?}", self);
             }

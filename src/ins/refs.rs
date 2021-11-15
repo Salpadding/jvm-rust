@@ -2,11 +2,10 @@ use crate::heap::Object;
 use crate::ins::Refs;
 use crate::op::OpCode;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::rp::Rp;
 
 impl Refs for OpCode {
-    fn refs(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>) {
+    fn refs(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame) {
         use crate::op::OpCode::*;
 
         match self {
@@ -14,55 +13,49 @@ impl Refs for OpCode {
                 let i = rd.u16() as usize;
 
                 let ptr = {
-                    let sym = { frame.borrow().class_ref(i) };
-
-                    let ptr = frame.borrow().new_obj(sym.class.clone());
+                    let sym = { mf.class_ref(i) };
+                    let ptr = mf.new_obj(sym.class);
                     ptr
                 };
 
-                let mut mf = frame.borrow_mut();
-                mf.stack.push_cell(Object::forget(ptr));
+                mf.stack.push_obj(ptr);
             }
             invokespecial => {
                 rd.u16();
-                frame.borrow_mut().stack.pop_cell();
+                mf.stack.pop_cell();
             }
             instanceof | checkcast => {
                 let i = rd.u16() as usize;
-                let sym = frame.borrow().class_ref(i);
-                let o = frame.borrow_mut().stack.pop_cell();
+                let sym = mf.class_ref(i);
+                let o = mf.stack.pop_obj();
 
-                let is = if o == 0 {
+                let is = if o.is_null() {
                     false
                 } else {
-                    let o = Object::from_ptr(o);
-                    let b = o.instance_of(&sym.class.borrow());
-                    Object::forget(o);
-                    b
+                    o.instance_of(&sym.class)
                 };
 
                 if self == instanceof {
-                    frame.borrow_mut().stack.push_u32(if is { 1 } else { 0 });
+                    mf.stack.push_u32(if is { 1 } else { 0 });
                     return;
                 }
 
                 if !is {
-                    let o = if o == 0 {
+                    let o = if o.is_null() {
                         "null".to_string()
                     } else {
-                        Object::from_ptr(o).class.borrow().name.clone()
+                        o.class.name.clone()
                     };
                     panic!("cannot cast object {} to {}", o, sym.name);
                 }
 
-                frame.borrow_mut().stack.push_cell(o);
+                mf.stack.push_obj(o);
             }
             putstatic | getstatic | putfield | getfield => {
                 let i = rd.u16() as usize;
-                let sym = frame.borrow().field_ref(i);
+                let sym = mf.field_ref(i);
 
-                let mut mf = frame.borrow_mut();
-                let mut class = sym.class.borrow_mut();
+                let mut class = sym.class;
 
                 match sym.desc.as_bytes()[0] {
                     b'Z' | b'B' | b'C' | b'S' | b'I' | b'F' => {
@@ -71,15 +64,13 @@ impl Refs for OpCode {
                             getstatic => mf.stack.push_u32(class.get_static(sym.field_i) as u32),
                             putfield => {
                                 let v = mf.stack.pop_u32();
-                                let mut obj = Object::from_ptr(mf.stack.pop_cell());
-                                class.set_instance(&mut obj, sym.field_i, v as u64);
-                                Object::forget(obj);
+                                let obj: Rp<Object> = Rp::from_ptr(mf.stack.pop_cell() as usize);
+                                class.set_instance(obj.get_mut(), sym.field_i, v as u64);
                             }
                             getfield => {
-                                let obj = Object::from_ptr(mf.stack.pop_cell());
+                                let obj: Rp<Object> = Rp::from_ptr(mf.stack.pop_cell() as usize);
                                 let v = class.get_instance(&obj, sym.field_i);
                                 mf.stack.push_u32(v as u32);
-                                Object::forget(obj);
                             }
                             _ => {}
                         };
@@ -90,15 +81,13 @@ impl Refs for OpCode {
                             getstatic => mf.stack.push_u64(class.get_static(sym.field_i)),
                             putfield => {
                                 let v = mf.stack.pop_u64();
-                                let mut obj = Object::from_ptr(mf.stack.pop_cell());
-                                class.set_instance(&mut obj, sym.field_i, v);
-                                Object::forget(obj);
+                                let obj = mf.stack.pop_obj();
+                                class.set_instance(obj.get_mut(), sym.field_i, v);
                             }
                             getfield => {
-                                let obj = Object::from_ptr(mf.stack.pop_cell());
+                                let obj = mf.stack.pop_obj();
                                 let v = class.get_instance(&obj, sym.field_i);
                                 mf.stack.push_u64(v);
-                                Object::forget(obj);
                             }
                             _ => {}
                         };
@@ -108,15 +97,13 @@ impl Refs for OpCode {
                         getstatic => mf.stack.push_cell(class.get_static(sym.field_i)),
                         putfield => {
                             let v = mf.stack.pop_cell();
-                            let mut obj = Object::from_ptr(mf.stack.pop_cell());
-                            class.set_instance(&mut obj, sym.field_i, v);
-                            Object::forget(obj);
+                            let obj = mf.stack.pop_obj();
+                            class.set_instance(obj.get_mut(), sym.field_i, v);
                         }
                         getfield => {
-                            let obj = Object::from_ptr(mf.stack.pop_cell());
+                            let obj = mf.stack.pop_obj();
                             let v = class.get_instance(&obj, sym.field_i);
                             mf.stack.push_cell(v);
-                            Object::forget(obj);
                         }
                         _ => {}
                     },

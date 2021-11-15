@@ -1,8 +1,6 @@
 use crate::ins::Control;
 use crate::op::OpCode;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
-use std::cell::{RefCell, RefMut};
-use std::rc::Rc;
 
 #[derive(Debug, Default)]
 struct TableSwitch {
@@ -24,7 +22,7 @@ impl TableSwitch {
         t
     }
 
-    fn exec(&self, th: &mut JThread, rd: &mut BytesReader, mut mf: RefMut<JFrame>) {
+    fn exec(&self, th: &mut JThread, rd: &mut BytesReader, mf: &mut JFrame) {
         let i = mf.stack.pop_i32();
 
         let off = if i >= self.low && i <= self.high {
@@ -54,7 +52,7 @@ impl LookupSwitch {
         l
     }
 
-    fn exec(&self, th: &mut JThread, rd: &mut BytesReader, mut mf: RefMut<JFrame>) {
+    fn exec(&self, th: &mut JThread, rd: &mut BytesReader, mf: &mut JFrame) {
         let k = mf.stack.pop_i32();
         let mut i = 0i32;
 
@@ -71,9 +69,8 @@ impl LookupSwitch {
 }
 
 impl Control for OpCode {
-    fn ctl(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>) {
+    fn ctl(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame) {
         use crate::op::OpCode::*;
-        let mut mf = frame.borrow_mut();
 
         match self {
             goto => {

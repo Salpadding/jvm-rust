@@ -85,9 +85,8 @@ impl DupStack for OpStack {
 }
 
 impl Stack for OpCode {
-    fn stack(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>) {
+    fn stack(self, rd: &mut BytesReader,  th: &mut JThread, mf: &mut JFrame) {
         use crate::op::OpCode::*;
-        let mut mf = frame.borrow_mut();
 
         match self {
             pop => mf.stack.size -= 1 ,

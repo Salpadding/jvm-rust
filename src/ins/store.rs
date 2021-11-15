@@ -50,9 +50,8 @@ macro_rules! astore_n {
 }
 
 impl Store for OpCode {
-    fn store(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>, w: bool) {
+    fn store(self, rd: &mut BytesReader,  th: &mut JThread, mf: &mut JFrame, w: bool) {
         use crate::op::OpCode::*;
-        let mut mf = frame.borrow_mut();
 
         match self {
            istore | fstore => xstore!(rd, mf, pop_u32, set_u32, w),

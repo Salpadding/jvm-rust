@@ -15,47 +15,47 @@ use core::cell::RefCell;
 use std::rc::Rc;
 
 pub trait Constant {
-    fn con(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>);
+    fn con(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame);
 }
 
 pub trait Load {
-    fn load(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>, wide: bool);
+    fn load(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame, wide: bool);
 }
 
 pub trait Store {
-    fn store(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>, wide: bool);
+    fn store(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame, wide: bool);
 }
 
 pub trait Stack {
-    fn stack(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>);
+    fn stack(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame);
 }
 
 pub trait Math {
-    fn math(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>, wide: bool);
+    fn math(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame, wide: bool);
 }
 
 pub trait Conversion {
-    fn conv(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>);
+    fn conv(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame);
 }
 
 pub trait Compare {
-    fn cmp(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>);
+    fn cmp(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame);
 }
 
 pub trait Control {
-    fn ctl(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>);
+    fn ctl(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame);
 }
 
 pub trait Ins {
-    fn step(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>, wide: bool);
+    fn step(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame, wide: bool);
 }
 
 pub trait Refs {
-    fn refs(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>);
+    fn refs(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame);
 }
 
 impl Ins for u8 {
-    fn step(self, rd: &mut BytesReader, th: &mut JThread, c: Rc<RefCell<JFrame>>, wide: bool) {
+    fn step(self, rd: &mut BytesReader, th: &mut JThread, c: &mut JFrame, wide: bool) {
         let op: OpCode = self.into();
 
         match self {
@@ -68,7 +68,7 @@ impl Ins for u8 {
             0x94..=0xa6 | 0xc6 | 0xc7 => op.cmp(rd, th, c),
             0xa7..=0xb0 | 0xc8 => op.ctl(rd, th, c),
             0xb1 => {
-                let locals = &c.borrow().local_vars;
+                let locals = &c.local_vars;
                 th.stack.pop_frame();
                 println!("return locals = {:?}", locals);
             }

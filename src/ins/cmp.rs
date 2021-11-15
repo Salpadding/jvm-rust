@@ -1,8 +1,6 @@
 use crate::ins::Compare;
 use crate::op::OpCode;
 use crate::runtime::{misc::BytesReader, vm::JThread, vm::JFrame};
-use std::rc::Rc;
-use std::cell::RefCell;
 
 macro_rules! cmp {
     ($mf: ident, $p: ident, $el: expr) => {
@@ -82,9 +80,8 @@ macro_rules! br_2a {
 }
 
 impl Compare for OpCode {
-    fn cmp(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>) {
+    fn cmp(self, rd: &mut BytesReader,  th: &mut JThread, mf: &mut JFrame) {
         use crate::op::OpCode::*;
-        let mut mf = frame.borrow_mut();
 
         match self {
             lcmp => cmp!(mf, pop_i64, 0),
