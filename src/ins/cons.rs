@@ -37,7 +37,7 @@ impl Constant for OpCode {
 
         match self {
             nop => {}
-            aconst_null => mf.stack.push_nil(),
+            aconst_null => mf.stack.push_null(),
             iconst_m1 => mf.stack.push_u32(-1i32 as u32),
             iconst_0 => mf.stack.push_u32(0),
             iconst_1 => mf.stack.push_u32(1),

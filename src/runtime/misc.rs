@@ -117,7 +117,7 @@ impl OpStack {
         f64::from_bits(self.pop_u64())
     }
 
-    pub fn push_nil(&mut self) {
+    pub fn push_null(&mut self) {
         self.slots[self.size] = 0;
         self.size += 1;
     }

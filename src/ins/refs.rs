@@ -1,8 +1,6 @@
-use crate::heap::Object;
 use crate::ins::Refs;
 use crate::op::OpCode;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
-use crate::rp::Rp;
 
 impl Refs for OpCode {
     fn refs(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame) {
@@ -64,11 +62,11 @@ impl Refs for OpCode {
                             getstatic => mf.stack.push_u32(class.get_static(sym.field_i) as u32),
                             putfield => {
                                 let v = mf.stack.pop_u32();
-                                let obj: Rp<Object> = Rp::from_ptr(mf.stack.pop_cell() as usize);
+                                let obj = mf.stack.pop_obj();
                                 class.set_instance(obj.get_mut(), sym.field_i, v as u64);
                             }
                             getfield => {
-                                let obj: Rp<Object> = Rp::from_ptr(mf.stack.pop_cell() as usize);
+                                let obj = mf.stack.pop_obj();
                                 let v = class.get_instance(&obj, sym.field_i);
                                 mf.stack.push_u32(v as u32);
                             }

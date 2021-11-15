@@ -183,11 +183,9 @@ impl Class {
                 return true;
             }
         }
-
         if self.super_class.is_null() {
             return false;
         }
-
         return self.super_class.is_impl(iface);
     }
 
@@ -202,13 +200,13 @@ impl Class {
 
     fn init_finals(&mut self) {
         for i in 0..self.static_fields.len() {
-            let f = &self.static_fields[i];
+            let f = self.static_fields[i];
 
             if !f.access_flags.is_final() {
                 continue;
             }
 
-            match &*f.desc {
+            match f.desc.as_str() {
                 "Z" | "B" | "C" | "S" | "I" => {
                     self.static_vars[i] = self.cp.u32(f.cons_i) as u64;
                 }
