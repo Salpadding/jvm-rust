@@ -65,6 +65,10 @@ impl Object {
         let p = p as usize as *mut Object;
         unsafe { Box::from_raw(p) }
     }
+
+    pub fn instance_of(&self, c: &Class) -> bool {
+        c.is_assignable(&self.class.borrow())
+    }
 }
 
 #[derive(Debug, Default)]
@@ -100,13 +104,6 @@ impl Class {
             }
         }
         None
-    }
-
-    fn count_class_vars(&self) -> usize {
-        self.fields
-            .iter()
-            .filter(|x| x.access_flags.is_static())
-            .count()
     }
 
     fn field_index(&self, f: &str) -> usize {
@@ -168,6 +165,54 @@ impl Class {
 
     pub fn get_instance(&self, obj: &Object, i: usize) -> u64 {
         obj.fields[i]
+    }
+
+    pub fn is_assignable(&self, from: &Class) -> bool {
+        if self.name == from.name {
+            return true;
+        }
+
+        if self.access_flags.is_iface() {
+            from.is_impl(self)
+        } else {
+            from.is_sub_class(self)
+        }
+    }
+
+    pub fn is_sub_class(&self, other: &Class) -> bool {
+        let mut sup = self.super_class.clone();
+
+        while sup.is_some() {
+            if sup.clone().unwrap().borrow().name == other.name {
+                return true;
+            }
+            let x = sup.unwrap().borrow().super_class.clone();
+            sup = x;
+        }
+        false
+    }
+
+    pub fn is_impl(&self, iface: &Class) -> bool {
+        for i in self.interfaces.iter() {
+            if i.borrow().name == iface.name || i.borrow().is_sub_iface(iface) {
+                return true;
+            }
+        }
+
+        if self.super_class.is_none() {
+            return false;
+        }
+
+        return self.super_class.clone().unwrap().borrow().is_impl(iface);
+    }
+
+    pub fn is_sub_iface(&self, iface: &Class) -> bool {
+        for i in self.interfaces.iter() {
+            if i.borrow().name == iface.name || i.borrow().is_sub_iface(iface) {
+                return true;
+            }
+        }
+        false
     }
 
     fn init_finals(&mut self) {
