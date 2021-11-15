@@ -3,6 +3,9 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+
+pub type Np<T> = Rp<T>;
+
 // unsafe raw pointer wrapper, which is also thread unsafe
 // for escape compiler check
 #[derive(Debug)]

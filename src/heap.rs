@@ -3,7 +3,7 @@ use crate::cp::{ClassFile, ConstantPool, MemberInfo};
 use crate::entry::Entry;
 use crate::{entry, StringErr};
 use std::collections::BTreeMap;
-use crate::rp::Rp;
+use crate::rp::{Rp, Np};
 
 impl From<ClassFile> for Class {
     fn from(mut c: ClassFile) -> Self {
@@ -70,7 +70,7 @@ pub struct Class {
     pub fields: Vec<Rp<ClassMember>>,
     pub methods: Vec<Rp<ClassMember>>,
 
-    pub super_class: Rp<Class>, 
+    pub super_class: Np<Class>, 
     pub interfaces: Vec<Rp<Class>>,
 
     pub static_fields: Vec<Rp<ClassMember>>,
@@ -79,7 +79,7 @@ pub struct Class {
     pub ins_fields: Vec<Rp<ClassMember>>,
 
     // runtime loaded symbols
-    pub sym_refs: Vec<Rp<SymRef>>,
+    pub sym_refs: Vec<Np<SymRef>>,
 }
 
 impl Class {
