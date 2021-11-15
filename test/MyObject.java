@@ -5,6 +5,7 @@ public class MyObject {
     public int instanceVar;
 
     public static void main(String[] args) {
+        int u = 32768;
         MyObject myObj = new MyObject();
         myObj.staticVar = 1;
         int x = myObj.staticVar;

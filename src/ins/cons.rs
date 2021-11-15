@@ -1,16 +1,45 @@
 use crate::ins::Constant;
 use crate::op::OpCode;
-use crate::runtime::{misc::BytesReader, vm::JThread, vm::JFrame};
-use std::rc::Rc;
+use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
 use std::cell::RefCell;
+use std::rc::Rc;
+
+trait Ldc {
+    fn _ldc(self, rd:&mut BytesReader, f: &mut JFrame);
+}
+
+impl Ldc for OpCode {
+    fn _ldc(self, rd:&mut BytesReader, f: &mut JFrame) {
+        use crate::op::OpCode::*;
+        let i = match self {
+            ldc => rd.u8() as usize,
+            _ => rd.u16() as usize,
+        };
+
+        let (c, w) = f.class.borrow().cp.cell(i);
+
+        if (self == ldc || self == ldc_w) && !w {
+
+            f.stack.push_u32(c as u32);
+            return;
+        }
+
+        if self == ldc2_w && w {
+            f.stack.push_u64(c);
+            return;
+        }
+
+        panic!("java.lang.ClassFormatError");
+    }
+}
 
 impl Constant for OpCode {
-    fn con(self, rd: &mut BytesReader,  th: &mut JThread, frame: Rc<RefCell<JFrame>>) {
+    fn con(self, rd: &mut BytesReader, th: &mut JThread, frame: Rc<RefCell<JFrame>>) {
         use crate::op::OpCode::*;
         let mut mf = frame.borrow_mut();
 
         match self {
-            nop => {},
+            nop => {}
             aconst_null => mf.stack.push_nil(),
             iconst_m1 => mf.stack.push_u32(-1i32 as u32),
             iconst_0 => mf.stack.push_u32(0),
@@ -40,6 +69,7 @@ impl Constant for OpCode {
                 mf.stack.push_u32(i as i16 as i32 as u32);
             }
 
+            ldc | ldc_w | ldc2_w => self._ldc(rd, &mut mf),
             _ => {
                 panic!("invalid op {:?}", self);
             }

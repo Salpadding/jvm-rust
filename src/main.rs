@@ -33,6 +33,7 @@ im_err!(std::io::Error);
 im_err!(FromUtf8Error);
 im_err!(OsString);
 
+mod rp;
 mod attr;
 mod cp;
 mod entry;

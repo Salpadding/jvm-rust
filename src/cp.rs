@@ -151,6 +151,16 @@ impl ConstantPool {
         }
     }
 
+    pub fn cell(&self, i: usize) -> (u64, bool) {
+        match self.infos[i] {
+            ConstantInfo::Integer(j) => (j as u64, false),
+            ConstantInfo::Float(j) => (j.to_bits() as u64, false),
+            ConstantInfo::Long(j) => (j, true),
+            ConstantInfo::Double(j) => (j.to_bits(), true),
+            _ => panic!("invalid constant index {}", i)
+        }
+    }
+
     pub fn f32(&self, i: usize) -> f32 {
         match self.infos[i] {
             ConstantInfo::Float(j) => j,
