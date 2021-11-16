@@ -119,6 +119,7 @@ impl<T> Rp<T> {
             return;
         }
         let b = unsafe { Box::from_raw(self.ptr as *mut T) };
+        std::mem::drop(b);
         self.ptr = 0usize;
     }
 
