@@ -143,22 +143,6 @@ impl Class {
         Rp::null()
     }
 
-    // pub fn field_index(&self, name: &str, desc: &str) -> usize {
-    //     let p = self
-    //         .static_fields
-    //         .iter()
-    //         .rev()
-    //         .position(|x| x.name == name && x.desc == desc);
-    //     if p.is_some() {
-    //         return p.unwrap();
-    //     }
-    //     self.ins_fields
-    //         .iter()
-    //         .rev()
-    //         .position(|x| x.name == name && x.desc == desc)
-    //         .unwrap()
-    // }
-
     pub fn set_static(&mut self, i: usize, v: u64) {
         self.static_vars[i] = v;
         println!(
