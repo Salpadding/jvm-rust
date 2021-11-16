@@ -10,6 +10,7 @@ use std::collections::BTreeMap;
 pub struct ClassLoader {
     entry: Box<dyn Entry>,
     loaded: BTreeMap<String, Rp<Class>>,
+    classes: Vec<Class>,
 }
 
 impl ClassLoader {
@@ -19,7 +20,12 @@ impl ClassLoader {
         Ok(ClassLoader {
             entry,
             loaded: BTreeMap::new(),
+            classes: Vec::new(),
         })
+    }
+
+    pub fn get(&self, i: usize) -> Rp<Class> {
+        Rp::from_ref(&self.classes[i])
     }
 
     pub fn load(&mut self, name: &str) -> Rp<Class> {
@@ -45,9 +51,9 @@ impl ClassLoader {
 
         cl.static_fields = cl
             .fields
-            .iter()
+            .iter_mut()
             .filter(|x| x.access_flags.is_static())
-            .map(|x| *x)
+            .map(|x| Rp::from_ref(x))
             .collect();
 
         // set field index
@@ -62,24 +68,28 @@ impl ClassLoader {
         let base = if cl.super_class.is_null() {
             0
         } else {
-            cl.super_class.count_ins_fields()
+            cl.super_class.ins_fields.len()
         };
 
         for i in 0..base {
-            cl.ins_fields.push(cl.super_class.get_ins_field(i));
+            cl.ins_fields.push(cl.super_class.ins_fields[i]);
         }
 
-        let mut base = base;
-        for f in cl.fields.iter().filter(|x| !x.access_flags.is_static()) {
-            f.get_mut().id = base as i32;
-            cl.ins_fields.push(*f);
-            base += 1;
+        let mut i = base;
+        for f in cl.fields.iter_mut().filter(|x| !x.access_flags.is_static()) {
+            f.id = i as i32;
+            cl.ins_fields.push(Rp::from_ref(f));
+            i += 1;
         }
+
+        let id = self.classes.len();
+        self.classes.push(cl);
 
         // link members to class
-        let mut p = Rp::new(cl);
-        let n = p;
+        let mut p = Rp::from_ref(&self.classes[id]);
+        p.id = id;
 
+        let n = p;
         for f in p.fields.iter_mut() {
             f.class = n;
         }
@@ -87,7 +97,6 @@ impl ClassLoader {
         for m in p.methods.iter_mut() {
             m.class = n;
         }
-
         self.loaded.insert(name.to_string(), p);
         p
     }

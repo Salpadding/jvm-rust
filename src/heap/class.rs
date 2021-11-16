@@ -15,8 +15,8 @@ impl From<ClassFile> for Class {
             .iter()
             .map(|x| c.cp.class(*x as usize).to_string())
             .collect();
-        r.fields = c.fields.iter().map(|x| Rp::new(x.into())).collect();
-        r.methods = c.methods.iter().map(|x| Rp::new(x.into())).collect();
+        r.fields = c.fields.iter().map(|x| x.into()).collect();
+        r.methods = c.methods.iter().map(|x| x.into()).collect();
         r.sym_refs = vec![Rp::null(); c.cp.infos.len()];
 
         core::mem::swap(&mut c.cp, &mut r.cp);
@@ -67,8 +67,8 @@ pub struct Class {
     pub super_name: String,
     pub iface_names: Vec<String>,
     pub cp: ConstantPool,
-    pub fields: Vec<Rp<ClassMember>>,
-    pub methods: Vec<Rp<ClassMember>>,
+    pub fields: Vec<ClassMember>,
+    pub methods: Vec<ClassMember>,
 
     pub super_class: Np<Class>,
     pub interfaces: Vec<Rp<Class>>,
@@ -80,6 +80,7 @@ pub struct Class {
 
     // runtime loaded symbols
     pub sym_refs: Vec<Np<SymRef>>,
+    pub id: usize,
 }
 
 impl Debug for Class {
@@ -95,6 +96,7 @@ impl Debug for Class {
             .field("static_vars", &self.static_vars)
             .field("ins_fields", &self.ins_fields)
             .field("sym_refs", &self.sym_refs)
+            .field("id", &self.id)
             .finish()
     }
 }
@@ -106,7 +108,7 @@ impl Class {
                 && &m.desc == "([Ljava/lang/String;)V"
                 && m.access_flags.is_static()
             {
-                return *m;
+                return Rp::from_ref(m);
             }
         }
         return Rp::null();
@@ -126,23 +128,6 @@ impl Class {
             .rev()
             .position(|x| x.name == name && x.desc == desc)
             .unwrap()
-    }
-
-    pub fn count_ins_fields(&self) -> usize {
-        let base = if self.super_class.is_null() {
-            0
-        } else {
-            self.super_class.count_ins_fields()
-        };
-        base + self
-            .fields
-            .iter()
-            .filter(|x| !x.access_flags.is_static())
-            .count()
-    }
-
-    pub fn get_ins_field(&self, i: usize) -> Rp<ClassMember> {
-        self.ins_fields[i]
     }
 
     pub fn set_static(&mut self, i: usize, v: u64) {
@@ -175,7 +160,7 @@ impl Class {
     }
 
     pub fn is_assignable(&self, from: &Class) -> bool {
-        if self.name == from.name {
+        if self.id == from.id {
             return true;
         }
 
@@ -190,7 +175,7 @@ impl Class {
         let mut sup = self.super_class;
 
         while !sup.is_null() {
-            if sup.name == other.name {
+            if sup.id == other.id {
                 return true;
             }
             sup = sup.super_class;
@@ -203,7 +188,7 @@ impl Class {
 
         loop {
             for i in self.interfaces.iter() {
-                if i.name == iface.name || i.is_sub_iface(iface) {
+                if i.id == iface.id || i.is_sub_iface(iface) {
                     return true;
                 }
             }
@@ -218,7 +203,7 @@ impl Class {
 
     pub fn is_sub_iface(&self, iface: &Class) -> bool {
         for i in self.interfaces.iter() {
-            if i.name == iface.name || i.is_sub_iface(iface) {
+            if i.id == iface.id || i.is_sub_iface(iface) {
                 return true;
             }
         }

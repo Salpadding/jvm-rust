@@ -65,6 +65,15 @@ impl<T> AsRef<T> for Rp<T> {
 }
 
 impl<T> Rp<T> {
+    pub fn from_ref(x: &T) -> Rp<T> {
+        {
+            Rp {
+                p: PhantomData,
+                ptr: x as *const T as usize,
+            }
+        }
+    }
+
     #[inline]
     pub fn from_ptr(p: usize) -> Rp<T> {
         if p == 0 {
