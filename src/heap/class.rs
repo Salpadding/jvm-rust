@@ -1,9 +1,8 @@
 use crate::attr::AttrInfo;
 use crate::cp::{ClassFile, ConstantPool, MemberInfo};
-use crate::entry::Entry;
+use crate::heap::misc::{AccessFlags, SymRef};
 use crate::rp::{Np, Rp};
-use crate::{entry, StringErr};
-use std::collections::BTreeMap;
+use core::fmt::Debug;
 
 impl From<ClassFile> for Class {
     fn from(mut c: ClassFile) -> Self {
@@ -28,6 +27,7 @@ impl From<ClassFile> for Class {
 impl From<&MemberInfo> for ClassMember {
     fn from(m: &MemberInfo) -> Self {
         let mut r = ClassMember::default();
+        r.id = -1;
         r.name = m.name.to_string();
         r.access_flags = AccessFlags(m.access_flags);
         r.desc = m.desc.to_string();
@@ -60,7 +60,7 @@ impl Object {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct Class {
     pub access_flags: AccessFlags,
     pub name: String,
@@ -82,6 +82,23 @@ pub struct Class {
     pub sym_refs: Vec<Np<SymRef>>,
 }
 
+impl Debug for Class {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Class")
+            .field("access_flags", &self.access_flags)
+            .field("name", &self.name)
+            .field("super_name", &self.super_name)
+            .field("iface_names", &self.iface_names)
+            .field("fields", &self.fields)
+            .field("methods", &self.methods)
+            .field("static_fields", &self.static_fields)
+            .field("static_vars", &self.static_vars)
+            .field("ins_fields", &self.ins_fields)
+            .field("sym_refs", &self.sym_refs)
+            .finish()
+    }
+}
+
 impl Class {
     pub fn main_method(&self) -> Rp<ClassMember> {
         for m in self.methods.iter() {
@@ -95,7 +112,7 @@ impl Class {
         return Rp::null();
     }
 
-    fn field_index(&self, name: &str, desc: &str) -> usize {
+    pub fn field_index(&self, name: &str, desc: &str) -> usize {
         let p = self
             .static_fields
             .iter()
@@ -111,7 +128,7 @@ impl Class {
             .unwrap()
     }
 
-    fn count_ins_fields(&self) -> usize {
+    pub fn count_ins_fields(&self) -> usize {
         let base = if self.super_class.is_null() {
             0
         } else {
@@ -124,7 +141,7 @@ impl Class {
             .count()
     }
 
-    fn get_ins_field(&self, i: usize) -> Rp<ClassMember> {
+    pub fn get_ins_field(&self, i: usize) -> Rp<ClassMember> {
         self.ins_fields[i]
     }
 
@@ -208,7 +225,7 @@ impl Class {
         false
     }
 
-    fn init_finals(&mut self) {
+    pub fn init_finals(&mut self) {
         for i in 0..self.static_fields.len() {
             let f = self.static_fields[i];
 
@@ -231,7 +248,7 @@ impl Class {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct ClassMember {
     pub access_flags: AccessFlags,
     pub name: String,
@@ -240,214 +257,20 @@ pub struct ClassMember {
     pub max_locals: usize,
     pub code: Vec<u8>,
     pub cons_i: usize,
-}
-
-#[derive(Debug, Default)]
-pub struct AccessFlags(u16);
-
-macro_rules! is_xx {
-    ($f: ident, $b: expr) => {
-        pub fn $f(&self) -> bool {
-            self.0 & $b != 0
-        }
-    };
-}
-
-impl AccessFlags {
-    is_xx!(is_public, flags::ACC_PUBLIC);
-    is_xx!(is_private, flags::ACC_PRIVATE);
-    is_xx!(is_protected, flags::ACC_PROTECTED);
-    is_xx!(is_static, flags::ACC_STATIC);
-    is_xx!(is_final, flags::ACC_FINAL);
-    is_xx!(is_super, flags::ACC_SUPER);
-    is_xx!(is_sync, flags::ACC_SYNCHRONIZED);
-    is_xx!(is_volatile, flags::ACC_VOLATILE);
-    is_xx!(is_bridge, flags::ACC_BRIDGE);
-    is_xx!(is_transient, flags::ACC_TRANSIENT);
-    is_xx!(is_varargs, flags::ACC_VARARGS);
-    is_xx!(is_native, flags::ACC_NATIVE);
-    is_xx!(is_iface, flags::ACC_INTERFACE);
-    is_xx!(is_abstract, flags::ACC_ABSTRACT);
-    is_xx!(is_strict, flags::ACC_STRICT);
-    is_xx!(is_synthetic, flags::ACC_SYNTHETIC);
-    is_xx!(is_annotation, flags::ACC_ANNOTATION);
-    is_xx!(is_enum, flags::ACC_ENUM);
-}
-
-mod flags {
-    pub const ACC_PUBLIC: u16 = 0x0001; // class field method
-    pub const ACC_PRIVATE: u16 = 0x0002; //       field method
-    pub const ACC_PROTECTED: u16 = 0x0004; //       field method
-    pub const ACC_STATIC: u16 = 0x0008; //       field method
-    pub const ACC_FINAL: u16 = 0x0010; // class field method
-    pub const ACC_SUPER: u16 = 0x0020; // class
-    pub const ACC_SYNCHRONIZED: u16 = 0x0020; //             method
-    pub const ACC_VOLATILE: u16 = 0x0040; //       field
-    pub const ACC_BRIDGE: u16 = 0x0040; //             method
-    pub const ACC_TRANSIENT: u16 = 0x0080; //       field
-    pub const ACC_VARARGS: u16 = 0x0080; //             method
-    pub const ACC_NATIVE: u16 = 0x0100; //             method
-    pub const ACC_INTERFACE: u16 = 0x0200; // class
-    pub const ACC_ABSTRACT: u16 = 0x0400; // class       method
-    pub const ACC_STRICT: u16 = 0x0800; //             method
-    pub const ACC_SYNTHETIC: u16 = 0x1000; // class field method
-    pub const ACC_ANNOTATION: u16 = 0x2000; // class
-    pub const ACC_ENUM: u16 = 0x4000; // class field
-}
-
-#[derive(Debug)]
-pub struct ClassLoader {
-    entry: Box<dyn Entry>,
-    loaded: BTreeMap<String, Rp<Class>>,
-}
-
-impl ClassLoader {
-    pub fn new(cp: &str) -> Result<Self, StringErr> {
-        let entry = entry::new_entry(cp)?;
-
-        Ok(ClassLoader {
-            entry,
-            loaded: BTreeMap::new(),
-        })
-    }
-
-    pub fn load(&mut self, name: &str) -> Rp<Class> {
-        match self.loaded.get(name) {
-            Some(cl) => return *cl,
-            _ => {}
-        };
-
-        let bytes = self.entry.read_class(name).unwrap();
-        self.define(name, bytes)
-    }
-
-    fn define(&mut self, name: &str, bytes: Vec<u8>) -> Rp<Class> {
-        let file = ClassFile::new(bytes);
-        let mut cl: Class = file.into();
-
-        // load super and interfaces
-        if &cl.super_name != "" {
-            cl.super_class = self.load(&cl.super_name);
-        }
-
-        cl.interfaces = cl.iface_names.iter().map(|x| self.load(x)).collect();
-
-        cl.static_fields = cl
-            .fields
-            .iter()
-            .filter(|x| x.access_flags.is_static())
-            .map(|x| *x)
-            .collect();
-        cl.static_vars = vec![0u64; cl.static_fields.len()];
-        cl.init_finals();
-
-        // init instance fields
-        let base = if cl.super_class.is_null() {
-            0
-        } else {
-            cl.super_class.count_ins_fields()
-        };
-
-        for i in 0..base {
-            cl.ins_fields.push(cl.super_class.get_ins_field(i));
-        }
-
-        for f in cl.fields.iter().filter(|x| !x.access_flags.is_static()) {
-            cl.ins_fields.push(*f);
-        }
-
-        let p = Rp::new(cl);
-        self.loaded.insert(name.to_string(), p);
-        p
-    }
-}
-
-#[derive(Debug)]
-pub struct Heap {
-    pub loader: ClassLoader,
-}
-
-impl Heap {
-    pub fn new(cp: &str) -> Result<Self, StringErr> {
-        let loader = ClassLoader::new(cp)?;
-        Ok(Heap { loader })
-    }
-
-    pub fn class_ref(&mut self, cur: &mut Class, i: usize) -> Rp<SymRef> {
-        let r = &mut cur.sym_refs[i];
-
-        if !r.is_null() {
-            return *r;
-        }
-
-        let name = cur.cp.class(i);
-        let class = self.loader.load(name);
-        let sym = SymRef {
-            class,
-            name: name.to_string(),
-            desc: "".to_string(),
-            field_i: 0,
-        };
-
-        *r = Rp::new(sym);
-        *r
-    }
-
-    pub fn field_ref(&mut self, cur: &mut Class, i: usize) -> Rp<SymRef> {
-        let r = &mut cur.sym_refs[i];
-
-        if !r.is_null() {
-            return *r;
-        }
-
-        let (class_name, name, desc) = cur.cp.field_ref(i);
-        let class = self.loader.load(class_name);
-        let mut sym = SymRef {
-            class: class,
-            name: name.to_string(),
-            desc: desc.to_string(),
-            field_i: 0,
-        };
-
-        sym.field_i = class.field_index(name, desc);
-
-        *r = Rp::new(sym);
-        *r
-    }
-
-    pub fn method_ref(&mut self, cur: &mut Class, i: usize) -> Rp<SymRef> {
-        todo!()
-    }
-
-    pub fn iface_ref(&mut self, cur: &mut Class, i: usize) -> Rp<SymRef> {
-        todo!()
-    }
-
-    pub fn new_obj(&self, class: Rp<Class>) -> Rp<Object> {
-        let obj = Object {
-            class: class,
-            fields: vec![0u64; class.ins_fields.len()],
-        };
-
-        Rp::new(obj)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct SymRef {
+    pub id: i32,
     pub class: Rp<Class>,
-    pub name: String,
-    pub desc: String,
-    pub field_i: usize,
 }
 
-#[cfg(test)]
-mod test {
-    use super::{AccessFlags, ClassLoader};
-
-    #[test]
-    fn loader_test() {
-        let mut loader = ClassLoader::new(".:test/rt.jar").unwrap();
-        let class = loader.load("test/Test");
+impl Debug for ClassMember {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ClassMember")
+            .field("access_flags", &self.access_flags)
+            .field("name", &self.name)
+            .field("desc", &self.desc)
+            .field("max_stack", &self.max_stack)
+            .field("max_locals", &self.max_locals)
+            .field("cons_i", &self.cons_i)
+            .field("id", &self.id)
+            .finish()
     }
 }

@@ -1,4 +1,5 @@
 use std::{
+    fmt::Debug,
     marker::PhantomData,
     ops::{Deref, DerefMut},
 };
@@ -7,10 +8,19 @@ pub type Np<T> = Rp<T>;
 
 // unsafe raw pointer wrapper, which is also thread unsafe
 // for escape compiler check
-#[derive(Debug)]
 pub struct Rp<T> {
     p: PhantomData<T>,
     ptr: usize,
+}
+
+impl<T: Debug> Debug for Rp<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_null() {
+            f.write_str("NULL")
+        } else {
+            write!(f, "{:?}", self.as_ref())
+        }
+    }
 }
 
 impl<T> Clone for Rp<T> {

@@ -1,4 +1,4 @@
-use crate::heap::Object;
+use crate::heap::class::Object;
 use crate::rp::Rp;
 
 pub struct BytesReader<'a> {

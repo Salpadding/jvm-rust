@@ -1,5 +1,5 @@
 use crate::StringErr;
-use crate::heap::{Class, ClassMember, Heap, Object, SymRef};
+use crate::heap::{class::Class, class::ClassMember, misc::Heap, class::Object, misc::SymRef};
 use crate::runtime::misc::{BytesReader, OpStack};
 use crate::rp::Rp;
 const MAX_JSTACK_SIZE: usize = 1024;
