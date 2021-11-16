@@ -58,16 +58,20 @@ impl Refs for OpCode {
                 match sym.desc.as_bytes()[0] {
                     b'Z' | b'B' | b'C' | b'S' | b'I' | b'F' => {
                         match self {
-                            putstatic => class.set_static(sym.field_i, mf.stack.pop_u32() as u64),
-                            getstatic => mf.stack.push_u32(class.get_static(sym.field_i) as u32),
+                            putstatic => {
+                                class.set_static(sym.member.id as usize, mf.stack.pop_u32() as u64)
+                            }
+                            getstatic => mf
+                                .stack
+                                .push_u32(class.get_static(sym.member.id as usize) as u32),
                             putfield => {
                                 let v = mf.stack.pop_u32();
                                 let obj = mf.stack.pop_obj();
-                                class.set_instance(obj.get_mut(), sym.field_i, v as u64);
+                                class.set_instance(obj.get_mut(), sym.member.id as usize, v as u64);
                             }
                             getfield => {
                                 let obj = mf.stack.pop_obj();
-                                let v = class.get_instance(&obj, sym.field_i);
+                                let v = class.get_instance(&obj, sym.member.id as usize);
                                 mf.stack.push_u32(v as u32);
                             }
                             _ => {}
@@ -75,32 +79,36 @@ impl Refs for OpCode {
                     }
                     b'D' | b'J' => {
                         match self {
-                            putstatic => class.set_static(sym.field_i, mf.stack.pop_u64() as u64),
-                            getstatic => mf.stack.push_u64(class.get_static(sym.field_i)),
+                            putstatic => {
+                                class.set_static(sym.member.id as usize, mf.stack.pop_u64() as u64)
+                            }
+                            getstatic => {
+                                mf.stack.push_u64(class.get_static(sym.member.id as usize))
+                            }
                             putfield => {
                                 let v = mf.stack.pop_u64();
                                 let obj = mf.stack.pop_obj();
-                                class.set_instance(obj.get_mut(), sym.field_i, v);
+                                class.set_instance(obj.get_mut(), sym.member.id as usize, v);
                             }
                             getfield => {
                                 let obj = mf.stack.pop_obj();
-                                let v = class.get_instance(&obj, sym.field_i);
+                                let v = class.get_instance(&obj, sym.member.id as usize);
                                 mf.stack.push_u64(v);
                             }
                             _ => {}
                         };
                     }
                     b'L' | b'[' => match self {
-                        putstatic => class.set_static(sym.field_i, mf.stack.pop_cell()),
-                        getstatic => mf.stack.push_cell(class.get_static(sym.field_i)),
+                        putstatic => class.set_static(sym.member.id as usize, mf.stack.pop_cell()),
+                        getstatic => mf.stack.push_cell(class.get_static(sym.member.id as usize)),
                         putfield => {
                             let v = mf.stack.pop_cell();
                             let obj = mf.stack.pop_obj();
-                            class.set_instance(obj.get_mut(), sym.field_i, v);
+                            class.set_instance(obj.get_mut(), sym.member.id as usize, v);
                         }
                         getfield => {
                             let obj = mf.stack.pop_obj();
-                            let v = class.get_instance(&obj, sym.field_i);
+                            let v = class.get_instance(&obj, sym.member.id as usize);
                             mf.stack.push_cell(v);
                         }
                         _ => {}

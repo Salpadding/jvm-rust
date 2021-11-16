@@ -4,7 +4,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-// the memory manage belongs to programmer, not compiler
+// the memory safety is guraranteed by programmer, not compiler
 pub trait Unmanged: Sized {
     #[inline]
     fn as_rp(&self) -> Rp<Self> {

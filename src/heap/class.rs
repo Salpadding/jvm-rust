@@ -83,7 +83,7 @@ pub struct Class {
     pub ins_fields: Vec<Rp<ClassMember>>,
 
     // runtime loaded symbols
-    pub sym_refs: Vec<Np<SymRef>>,
+    pub sym_refs: Vec<Rp<SymRef>>,
     pub id: usize,
 }
 
@@ -118,21 +118,46 @@ impl Class {
         return Rp::null();
     }
 
-    pub fn field_index(&self, name: &str, desc: &str) -> usize {
-        let p = self
-            .static_fields
-            .iter()
-            .rev()
-            .position(|x| x.name == name && x.desc == desc);
-        if p.is_some() {
-            return p.unwrap();
+    pub fn lookup_field(&self, name: &str, desc: &str) -> Rp<ClassMember> {
+        // lookup in this class fields
+        for f in self.fields.iter() {
+            if f.name == name && f.desc == desc {
+                return f.as_rp();
+            }
         }
-        self.ins_fields
-            .iter()
-            .rev()
-            .position(|x| x.name == name && x.desc == desc)
-            .unwrap()
+
+
+        // lookup in implements
+        for iface in self.interfaces.iter() {
+            let f = iface.lookup_field(name, desc);
+
+            if !f.is_null() {
+                return f;
+            }
+        }
+
+        if !self.super_class.is_null() {
+            return self.super_class.lookup_field(name, desc);
+        }
+
+        Rp::null()
     }
+
+    // pub fn field_index(&self, name: &str, desc: &str) -> usize {
+    //     let p = self
+    //         .static_fields
+    //         .iter()
+    //         .rev()
+    //         .position(|x| x.name == name && x.desc == desc);
+    //     if p.is_some() {
+    //         return p.unwrap();
+    //     }
+    //     self.ins_fields
+    //         .iter()
+    //         .rev()
+    //         .position(|x| x.name == name && x.desc == desc)
+    //         .unwrap()
+    // }
 
     pub fn set_static(&mut self, i: usize, v: u64) {
         self.static_vars[i] = v;

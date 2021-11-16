@@ -3,6 +3,8 @@ use crate::heap::loader::ClassLoader;
 use crate::rp::{Rp, Unmanged};
 use crate::StringErr;
 
+use super::class::ClassMember;
+
 #[derive(Debug, Default)]
 pub struct AccessFlags(pub u16);
 
@@ -82,7 +84,7 @@ impl Heap {
             class,
             name: name.to_string(),
             desc: "".to_string(),
-            field_i: 0,
+            member: Rp::null(),
         };
 
         *r = Rp::new(sym);
@@ -98,14 +100,14 @@ impl Heap {
 
         let (class_name, name, desc) = cur.cp.field_ref(i);
         let class = self.loader.load(class_name);
+        let field = class.lookup_field(name, desc);
+
         let mut sym = SymRef {
             class: class,
             name: name.to_string(),
             desc: desc.to_string(),
-            field_i: 0,
+            member: field,
         };
-
-        sym.field_i = class.field_index(name, desc);
 
         *r = Rp::new(sym);
         *r
@@ -135,7 +137,7 @@ pub struct SymRef {
     pub class: Rp<Class>,
     pub name: String,
     pub desc: String,
-    pub field_i: usize,
+    pub member: Rp<ClassMember>,
 }
 
 #[cfg(test)]
