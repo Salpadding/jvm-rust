@@ -95,19 +95,19 @@ impl Class {
         return Rp::null();
     }
 
-    fn field_index(&self, f: &str) -> usize {
+    fn field_index(&self, name: &str, desc: &str) -> usize {
         let p = self
             .static_fields
             .iter()
-            .map(|x| &x.name)
-            .position(|x| x == f);
+            .rev()
+            .position(|x| x.name == name && x.desc == desc);
         if p.is_some() {
             return p.unwrap();
         }
         self.ins_fields
             .iter()
-            .map(|x| &x.name)
-            .position(|x| x == f)
+            .rev()
+            .position(|x| x.name == name && x.desc == desc)
             .unwrap()
     }
 
@@ -178,15 +178,21 @@ impl Class {
     }
 
     pub fn is_impl(&self, iface: &Class) -> bool {
-        for i in self.interfaces.iter() {
-            if i.name == iface.name || i.is_sub_iface(iface) {
-                return true;
+        let mut cur: &Class = self;
+
+        loop {
+            for i in self.interfaces.iter() {
+                if i.name == iface.name || i.is_sub_iface(iface) {
+                    return true;
+                }
             }
+
+            if cur.super_class.is_null() {
+                return false;
+            }
+
+            cur = &cur.super_class;
         }
-        if self.super_class.is_null() {
-            return false;
-        }
-        return self.super_class.is_impl(iface);
     }
 
     pub fn is_sub_iface(&self, iface: &Class) -> bool {
@@ -396,7 +402,7 @@ impl Heap {
             field_i: 0,
         };
 
-        sym.field_i = class.field_index(name);
+        sym.field_i = class.field_index(name, desc);
 
         *r = Rp::new(sym);
         *r
