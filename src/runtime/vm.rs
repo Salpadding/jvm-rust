@@ -78,6 +78,8 @@ impl JThread {
         use crate::ins::Ins;
         while !self.stack.is_empty() {
             let f = self.cur_frame();
+            self.pc = f.next_pc;
+
             let method = f.method;
             self.next_pc = None;
             let mut rd = BytesReader {
@@ -95,10 +97,12 @@ impl JThread {
                 op.step(&mut rd, self, f.get_mut(), false);
             }
 
+            f.get_mut().next_pc = rd.pc;
+
             match self.next_pc {
-                None => self.pc = rd.pc,
-                Some(off) => self.pc += off,
-            }
+                Some(off) => f.get_mut().next_pc = self.pc + off,
+                _ => {}
+            };
         }
     }
 }
@@ -153,6 +157,7 @@ pub struct JFrame {
     pub method: Rp<ClassMember>,
     pub class: Rp<Class>,
     pub heap: Rp<Heap>,
+    pub next_pc: i32,
 }
 
 macro_rules! xx_ref {
@@ -176,6 +181,7 @@ impl JFrame {
             method,
             class,
             heap,
+            next_pc: 0,
         }
     }
 
@@ -200,6 +206,7 @@ impl JFrame {
 
         let mut j = 0usize;
         for i in 0..args.len() {
+            println!("pass arg i = {} v=  {} type = {:?} ", i, args[i], types[i]);
             match &types[i] {
                 JType::IF => {
                     other.local_vars.set_u32(j, args[i] as u32);

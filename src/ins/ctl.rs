@@ -97,6 +97,8 @@ impl Control for OpCode {
 
                 if self == lreturn || self == dreturn {
                     let c = mf.stack.pop_u64();
+
+                    println!("lreturn {}", c);
                     th.stack.prev_frame().stack.push_u64(c)
                 }
 
@@ -105,7 +107,6 @@ impl Control for OpCode {
                     th.stack.prev_frame().stack.push_cell(c)
                 }
                 th.stack.pop_frame();
-
             }
             _ => {
                 panic!("invalid op {:?}", self);
