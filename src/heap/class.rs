@@ -3,6 +3,9 @@ use crate::cp::{ClassFile, ConstantPool, MemberInfo};
 use crate::heap::misc::{AccessFlags, SymRef};
 use crate::rp::{Np, Rp, Unmanged};
 use core::fmt::Debug;
+use std::ops::Deref;
+
+use super::misc::MethodDescriptor;
 
 impl Unmanged for Class {}
 
@@ -117,6 +120,57 @@ impl Class {
         }
         return Rp::null();
     }
+
+    pub fn lookup_method(&self, name: &str, desc: &str) -> Rp<ClassMember> {
+        let mut cur: &Class = &self;
+
+        // lookup in class
+        loop {
+            for m in cur.methods.iter() {
+                if m.name == name && m.desc == desc {
+                    return m.as_rp();
+                }
+            }
+            if cur.super_class.is_null() {
+                break;
+            }
+            cur = &cur.super_class;
+        }
+
+        // lookup in super interfaces
+        Self::lookup_method_in_ifaces(&self.interfaces, name, desc)
+    }
+
+    pub fn lookup_iface_method(&self, name: &str, desc: &str) -> Rp<ClassMember> {
+        // lookup in interfaces
+        for m in self.methods.iter() {
+            if m.name == name && m.desc == desc {
+                return m.as_rp();
+            }
+        }
+
+        // lookup in super interfaces
+        Self::lookup_method_in_ifaces(&self.interfaces, name, desc)
+    }
+
+    fn lookup_method_in_ifaces<T: Deref<Target=Class>>(ifaces: &[T], name: &str, desc: &str) -> Rp<ClassMember> {
+        for i in ifaces.iter() {
+            for m in i.methods.iter() {
+                if m.name == name && m.desc == desc {
+                    return m.as_rp()
+                }
+            }
+
+            let m = Self::lookup_method_in_ifaces(&i.interfaces, name, desc);
+
+            if !m.is_null() {
+                return m;
+            }
+        }
+
+        Rp::null()
+    }
+    
 
     pub fn lookup_field(&self, name: &str, desc: &str) -> Rp<ClassMember> {
         // lookup in this class fields
@@ -258,6 +312,7 @@ pub struct ClassMember {
     pub cons_i: usize,
     pub id: i32,
     pub class: Rp<Class>,
+    pub m_desc: MethodDescriptor,
 }
 
 impl Debug for ClassMember {
