@@ -33,13 +33,13 @@ im_err!(std::io::Error);
 im_err!(FromUtf8Error);
 im_err!(OsString);
 
-mod rp;
 mod attr;
 mod cp;
 mod entry;
 mod heap;
 mod ins;
 mod op;
+mod rp;
 mod runtime;
 mod utils;
 

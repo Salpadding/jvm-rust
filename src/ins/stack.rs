@@ -1,8 +1,6 @@
 use crate::ins::Stack;
 use crate::op::OpCode;
-use crate::runtime::{misc::BytesReader, vm::JThread, vm::JFrame, misc::OpStack };
-use std::rc::Rc;
-use std::cell::RefCell;
+use crate::runtime::{misc::BytesReader, misc::OpStack, vm::JFrame, vm::JThread};
 
 trait DupStack {
     fn dup(&mut self);
@@ -14,19 +12,14 @@ trait DupStack {
     fn swap(&mut self);
 }
 
-
 impl DupStack for OpStack {
     fn dup(&mut self) {
-        let top = {
-            self.slots[self.size - 1]
-        };
+        let top = { self.slots[self.size - 1] };
         self.push_cell(top);
     }
 
     fn dup2(&mut self) {
-        let (v2, v1) = {
-            (self.slots[self.size - 2], self.slots[self.size - 1])
-        };
+        let (v2, v1) = { (self.slots[self.size - 2], self.slots[self.size - 1]) };
         self.slots[self.size] = v2;
         self.slots[self.size + 1] = v1;
         self.size += 2;
@@ -85,16 +78,16 @@ impl DupStack for OpStack {
 }
 
 impl Stack for OpCode {
-    fn stack(self, rd: &mut BytesReader,  th: &mut JThread, mf: &mut JFrame) {
+    fn stack(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame) {
         use crate::op::OpCode::*;
 
         match self {
-            pop => mf.stack.size -= 1 ,
-            pop2 => mf.stack.size -= 2 ,
+            pop => mf.stack.size -= 1,
+            pop2 => mf.stack.size -= 2,
             dup => mf.stack.dup(),
             dup_x1 => mf.stack.dup_x1(),
             dup_x2 => mf.stack.dup_x2(),
-            dup2 => mf.stack.dup2(), 
+            dup2 => mf.stack.dup2(),
             dup2_x1 => mf.stack.dup2_x1(),
             dup2_x2 => mf.stack.dup2_x2(),
             swap => mf.stack.swap(),

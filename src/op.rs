@@ -281,7 +281,6 @@ impl From<u8> for OpCode {
             52 => OpCode::caload,
             53 => OpCode::saload,
 
-
             // Store
             54 => OpCode::istore,
             55 => OpCode::lstore,
@@ -327,7 +326,6 @@ impl From<u8> for OpCode {
             93 => OpCode::dup2_x1,
             94 => OpCode::dup_x2,
             95 => OpCode::swap,
-
 
             // Math
             96 => OpCode::iadd,
@@ -418,7 +416,7 @@ impl From<u8> for OpCode {
             175 => OpCode::dreturn,
             176 => OpCode::areturn,
             177 => OpCode::return_void,
-            
+
             // References
             178 => OpCode::getstatic,
             179 => OpCode::putstatic,

@@ -11,9 +11,6 @@ mod store;
 use crate::op::OpCode;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
 
-use core::cell::RefCell;
-use std::rc::Rc;
-
 pub trait Constant {
     fn con(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame);
 }

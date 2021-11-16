@@ -3,7 +3,6 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-
 pub type Np<T> = Rp<T>;
 
 // unsafe raw pointer wrapper, which is also thread unsafe
@@ -14,18 +13,18 @@ pub struct Rp<T> {
     ptr: usize,
 }
 
-impl <T> Clone for Rp<T> {
+impl<T> Clone for Rp<T> {
     fn clone(&self) -> Self {
-        Self { p: PhantomData, ptr: self.ptr.clone() }
+        Self {
+            p: PhantomData,
+            ptr: self.ptr,
+        }
     }
 }
 
-impl <T> Copy for Rp<T> {
+impl<T> Copy for Rp<T> {}
 
-}
-
-
-impl <T> Default for Rp<T> {
+impl<T> Default for Rp<T> {
     #[inline]
     fn default() -> Self {
         Self::null()
@@ -57,11 +56,14 @@ impl<T> AsRef<T> for Rp<T> {
 
 impl<T> Rp<T> {
     #[inline]
-    pub fn from_ptr(p: usize) ->Rp<T> {
+    pub fn from_ptr(p: usize) -> Rp<T> {
         if p == 0 {
             return Rp::null();
         }
-        Rp { p: PhantomData, ptr: p }
+        Rp {
+            p: PhantomData,
+            ptr: p,
+        }
     }
 
     #[inline]

@@ -3,11 +3,11 @@ use crate::op::OpCode;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
 
 trait Ldc {
-    fn _ldc(self, rd:&mut BytesReader, f: &mut JFrame);
+    fn _ldc(self, rd: &mut BytesReader, f: &mut JFrame);
 }
 
 impl Ldc for OpCode {
-    fn _ldc(self, rd:&mut BytesReader, f: &mut JFrame) {
+    fn _ldc(self, rd: &mut BytesReader, f: &mut JFrame) {
         use crate::op::OpCode::*;
         let i = match self {
             ldc => rd.u8() as usize,
@@ -17,7 +17,6 @@ impl Ldc for OpCode {
         let (c, w) = f.class.cp.cell(i);
 
         if (self == ldc || self == ldc_w) && !w {
-
             f.stack.push_u32(c as u32);
             return;
         }

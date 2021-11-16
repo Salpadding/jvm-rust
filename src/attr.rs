@@ -15,7 +15,11 @@ pub enum AttrInfo {
     LocalVariableTable(Vec<LocalVariable>),
     SourceFile(String),
     Synthetic,
-    Unparsed { name: String, len: usize, info: Vec<u8> },
+    Unparsed {
+        name: String,
+        len: usize,
+        info: Vec<u8>,
+    },
 }
 
 #[derive(Debug, Default)]
@@ -26,7 +30,10 @@ pub struct LineNumber {
 
 impl ReadFrom for LineNumber {
     fn read_from(p: &mut ClassFileParser, cp: &ConstantPool) -> Self {
-        Self { start_pc: p.u16(), line_number: p.u16()}
+        Self {
+            start_pc: p.u16(),
+            line_number: p.u16(),
+        }
     }
 }
 
@@ -106,7 +113,7 @@ impl ReadFrom for AttrInfo {
         let attr_len = p.u32() as usize;
 
         match cp.utf8(name_i) {
-            "Deprecated" =>  Self::Deprecated,
+            "Deprecated" => Self::Deprecated,
             "Synthetic" => Self::Synthetic,
             "SourceFile" => {
                 let i = p.u16();
@@ -117,8 +124,17 @@ impl ReadFrom for AttrInfo {
             "LineNumberTable" => Self::LineNumberTable(LineNumber::read_vec_from(p, cp)),
             "LocalVariableTable" => Self::LocalVariableTable(LocalVariable::read_vec_from(p, cp)),
             // constant pool index refers to class info
-            "Exceptions" => Self::Exceptions(u16::read_vec_from(p, cp).into_iter().map(|x| cp.class(x as usize).to_string()).collect()),
-            _ => Self::Unparsed { name: cp.utf8(name_i).to_string(), len: attr_len, info: p.bytes(attr_len).to_vec() } 
+            "Exceptions" => Self::Exceptions(
+                u16::read_vec_from(p, cp)
+                    .into_iter()
+                    .map(|x| cp.class(x as usize).to_string())
+                    .collect(),
+            ),
+            _ => Self::Unparsed {
+                name: cp.utf8(name_i).to_string(),
+                len: attr_len,
+                info: p.bytes(attr_len).to_vec(),
+            },
         }
     }
 }

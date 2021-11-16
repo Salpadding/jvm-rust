@@ -1,12 +1,10 @@
 use crate::ins::Load;
 use crate::op::OpCode;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
-use std::cell::RefCell;
-use std::rc::Rc;
 
 macro_rules! xload {
     ($rd: ident, $mf: ident, $gt: ident, $pt: ident, $wd: expr) => {{
-          let i = if $wd {
+        let i = if $wd {
             $rd.u16() as usize
         } else {
             $rd.u8() as usize

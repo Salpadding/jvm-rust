@@ -157,7 +157,7 @@ impl ConstantPool {
             ConstantInfo::Float(j) => (j.to_bits() as u64, false),
             ConstantInfo::Long(j) => (j, true),
             ConstantInfo::Double(j) => (j.to_bits(), true),
-            _ => panic!("invalid constant index {}", i)
+            _ => panic!("invalid constant index {}", i),
         }
     }
 

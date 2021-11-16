@@ -42,7 +42,7 @@ impl Refs for OpCode {
                     let o = if o.is_null() {
                         "null".to_string()
                     } else {
-                        o.class.name.clone()
+                        o.class.name.to_string()
                     };
                     panic!("cannot cast object {} to {}", o, sym.name);
                 }

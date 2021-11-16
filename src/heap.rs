@@ -1,9 +1,9 @@
 use crate::attr::AttrInfo;
 use crate::cp::{ClassFile, ConstantPool, MemberInfo};
 use crate::entry::Entry;
+use crate::rp::{Np, Rp};
 use crate::{entry, StringErr};
 use std::collections::BTreeMap;
-use crate::rp::{Rp, Np};
 
 impl From<ClassFile> for Class {
     fn from(mut c: ClassFile) -> Self {
@@ -35,7 +35,7 @@ impl From<&MemberInfo> for ClassMember {
         for attr in m.attrs.iter() {
             match attr {
                 &AttrInfo::Code(ref c) => {
-                    r.code = c.code.clone();
+                    r.code = c.code.to_vec();
                     r.max_stack = c.max_stack as usize;
                     r.max_locals = c.max_locals as usize;
                 }
@@ -70,7 +70,7 @@ pub struct Class {
     pub fields: Vec<Rp<ClassMember>>,
     pub methods: Vec<Rp<ClassMember>>,
 
-    pub super_class: Np<Class>, 
+    pub super_class: Np<Class>,
     pub interfaces: Vec<Rp<Class>>,
 
     pub static_fields: Vec<Rp<ClassMember>>,
@@ -112,7 +112,11 @@ impl Class {
     }
 
     fn count_ins_fields(&self) -> usize {
-        let base = if self.super_class.is_null()  { 0 } else { self.super_class.count_ins_fields() };
+        let base = if self.super_class.is_null() {
+            0
+        } else {
+            self.super_class.count_ins_fields()
+        };
         base + self
             .fields
             .iter()
@@ -166,7 +170,7 @@ impl Class {
     }
 
     pub fn is_sub_class(&self, other: &Class) -> bool {
-        let mut sup = self.super_class.clone();
+        let mut sup = self.super_class;
 
         while !sup.is_null() {
             if sup.name == other.name {
@@ -294,7 +298,7 @@ mod flags {
 #[derive(Debug)]
 pub struct ClassLoader {
     entry: Box<dyn Entry>,
-    loaded: BTreeMap<String, Rp<Class>>
+    loaded: BTreeMap<String, Rp<Class>>,
 }
 
 impl ClassLoader {
@@ -338,15 +342,18 @@ impl ClassLoader {
         cl.init_finals();
 
         // init instance fields
-        let base = if cl.super_class.is_null() { 0 } else { cl.super_class.count_ins_fields() };
+        let base = if cl.super_class.is_null() {
+            0
+        } else {
+            cl.super_class.count_ins_fields()
+        };
 
         for i in 0..base {
-            cl.ins_fields
-                .push(cl.super_class.get_ins_field(i));
+            cl.ins_fields.push(cl.super_class.get_ins_field(i));
         }
 
         for f in cl.fields.iter().filter(|x| !x.access_flags.is_static()) {
-            cl.ins_fields.push(f.clone());
+            cl.ins_fields.push(*f);
         }
 
         let p = Rp::new(cl);
@@ -396,7 +403,7 @@ impl Heap {
         let (class_name, name, desc) = cur.cp.field_ref(i);
         let class = self.loader.load(class_name);
         let mut sym = SymRef {
-            class: class.clone(),
+            class: class,
             name: name.to_string(),
             desc: desc.to_string(),
             field_i: 0,
