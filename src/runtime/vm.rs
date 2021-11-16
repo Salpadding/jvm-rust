@@ -1,3 +1,4 @@
+use crate::heap::misc::JType;
 use crate::heap::{class::Class, class::ClassMember, class::Object, misc::Heap, misc::SymRef};
 use crate::rp::{Rp, Unmanged};
 use crate::runtime::misc::{BytesReader, OpStack};
@@ -65,6 +66,10 @@ impl JThread {
         }
     }
 
+    pub fn new_frame(&self, m: Rp<ClassMember>) -> JFrame {
+        JFrame::new(self.heap, m.class, m)
+    }
+
     pub fn cur_frame(&self) -> Rp<JFrame> {
         self.stack.cur_frame()
     }
@@ -115,7 +120,7 @@ impl JStack {
         }
     }
 
-    fn push_frame(&mut self, frame: JFrame) {
+    pub fn push_frame(&mut self, frame: JFrame) {
         self.frames[self.size] = Rp::new(frame);
         self.size += 1;
     }
@@ -124,6 +129,10 @@ impl JStack {
         let top = self.frames[self.size - 1];
         self.size -= 1;
         top
+    }
+
+    pub fn prev_frame(&self) -> Rp<JFrame> {
+        self.frames[self.size - 2]
     }
 
     fn cur_frame(&self) -> Rp<JFrame> {
@@ -172,8 +181,39 @@ impl JFrame {
 
     xx_ref!(class_ref);
     xx_ref!(field_ref);
+    xx_ref!(method_ref);
 
     pub fn new_obj(&self, class: Rp<Class>) -> Rp<Object> {
         self.heap.new_obj(class)
+    }
+
+    pub fn pass_args(&mut self, other: &mut JFrame, types: &[JType]) {
+        let mut args = vec![0u64; types.len()];
+        for i in (0..args.len()).rev() {
+            args[i] = match &types[i] {
+                JType::IF => self.stack.pop_u32() as u64,
+                JType::DJ => self.stack.pop_u64(),
+                JType::A => self.stack.pop_cell(),
+            }
+        }
+        use crate::runtime::misc::Slots;
+
+        let mut j = 0usize;
+        for i in 0..args.len() {
+            match &types[i] {
+                JType::IF => {
+                    other.local_vars.set_u32(j, args[i] as u32);
+                    j += 1;
+                }
+                JType::DJ => {
+                    other.local_vars.set_u64(j, args[i]);
+                    j += 2;
+                }
+                JType::A => {
+                    other.local_vars.set_cell(j, args[i]);
+                    j += 1;
+                }
+            }
+        }
     }
 }

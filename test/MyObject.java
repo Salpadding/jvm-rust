@@ -17,5 +17,11 @@ public class MyObject {
         boolean c = myObj instanceof java.lang.Object;
         Object d = (Object) myObj;
         MyObject e = (MyObject) d;
+
+        long f = add(u, 3000000000L);
+    }
+
+    public static long add(int a, long b) {
+        return a + b;
     }
 }

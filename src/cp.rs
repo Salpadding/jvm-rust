@@ -90,12 +90,19 @@ impl ReadFrom for ConstantPool {
     fn read_from(parser: &mut ClassFileParser, cp: &ConstantPool) -> ConstantPool {
         // n of constant pool
         let n = parser.u16() as usize;
-        let mut infos: Vec<ConstantInfo> = Vec::with_capacity(n);
-        infos.push(ConstantInfo::Blank);
 
+        let mut infos: Vec<ConstantInfo> = vec![ConstantInfo::Blank; n];
+
+        let mut i = 1;
         // parse constant infos
-        for _ in 1..n {
-            infos.push(ConstantInfo::read_from(parser, cp))
+        while i < n {
+            let info = ConstantInfo::read_from(parser, cp);
+
+            infos[i] = info;
+            match infos[i] {
+                ConstantInfo::Double(_) | ConstantInfo::Long(_) => i += 2,
+                _ => i += 1,
+            }
         }
 
         ConstantPool { infos }
@@ -199,7 +206,7 @@ impl ConstantPool {
 // 常量池的实际大小是 n - 1
 // 常量池的有效索引是 1~n-1, 0 是无效索引
 // CONSTANT_Long_info 和 CONSTANT_Double_info 各占两个位置, 如果常量池存在这两种常量, 实际的常量比 n - 1 还要少
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ConstantInfo {
     // since index ranges from 1~n-1, fill blank into zero entry
     Blank,

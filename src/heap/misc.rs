@@ -154,7 +154,29 @@ pub struct DescriptorParser<'a> {
 #[derive(Debug, Default)]
 pub struct MethodDescriptor {
     pub params: Vec<String>,
+    pub jtypes: Vec<JType>,
     pub ret: String,
+}
+
+#[derive(Debug)]
+pub enum JType {
+    IF,
+    DJ,
+    A,
+}
+
+pub trait JTypeDescriptor {
+    fn jtype(&self) -> JType;
+}
+
+impl JTypeDescriptor for str {
+    fn jtype(&self) -> JType {
+        match self.as_bytes()[0] {
+            b'Z' | b'B' | b'C' | b'S' | b'I' | b'F' => JType::IF,
+            b'D' | b'J' => JType::DJ,
+            _ => JType::A,
+        }
+    }
 }
 
 impl DescriptorParser<'_> {
@@ -180,11 +202,16 @@ impl DescriptorParser<'_> {
         self.u8();
 
         let params = self.parse_params();
+        let jtypes: Vec<JType> = params.iter().map(|x| x.jtype()).collect();
         self.u8();
 
         let ret = self.parse_param();
 
-        MethodDescriptor { params, ret }
+        MethodDescriptor {
+            params,
+            ret,
+            jtypes,
+        }
     }
 
     fn parse_params(&mut self) -> Vec<String> {
