@@ -1,6 +1,6 @@
 use crate::heap::class::{Class, Object};
 use crate::heap::loader::ClassLoader;
-use crate::rp::Rp;
+use crate::rp::{Rp, Unmanged};
 use crate::StringErr;
 
 #[derive(Debug, Default)]
@@ -60,6 +60,8 @@ mod flags {
 pub struct Heap {
     pub loader: ClassLoader,
 }
+
+impl Unmanged for Heap {}
 
 impl Heap {
     pub fn new(cp: &str) -> Result<Self, StringErr> {
@@ -127,6 +129,7 @@ impl Heap {
     }
 }
 
+impl Unmanged for SymRef {}
 #[derive(Debug, Clone)]
 pub struct SymRef {
     pub class: Rp<Class>,

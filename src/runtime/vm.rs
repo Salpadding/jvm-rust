@@ -1,9 +1,8 @@
-use crate::StringErr;
-use crate::heap::{class::Class, class::ClassMember, misc::Heap, class::Object, misc::SymRef};
+use crate::heap::{class::Class, class::ClassMember, class::Object, misc::Heap, misc::SymRef};
+use crate::rp::{Rp, Unmanged};
 use crate::runtime::misc::{BytesReader, OpStack};
-use crate::rp::Rp;
+use crate::StringErr;
 const MAX_JSTACK_SIZE: usize = 1024;
-
 
 // jvm runtime representation
 #[derive(Debug)]
@@ -16,18 +15,15 @@ impl Jvm {
     pub fn new(cp: &str) -> Result<Self, StringErr> {
         let heap = Heap::new(cp)?;
         let p = Rp::new(heap);
-        Ok(
-            Jvm {
-                heap: p,
-                thread: JThread::new(p),
-            }
-        )
+        Ok(Jvm {
+            heap: p,
+            thread: JThread::new(p),
+        })
     }
 
     pub fn run_class(&mut self, c: &str) -> Result<(), StringErr> {
         // load class
-        let c = 
-            self.heap.loader.load(c);
+        let c = self.heap.loader.load(c);
 
         // get main method
         let main = c.main_method();
@@ -36,13 +32,14 @@ impl Jvm {
             return err!("class {} has no main method", &c.name);
         }
 
-        self.thread.stack.push_frame(JFrame::new(self.heap, c, main));
+        self.thread
+            .stack
+            .push_frame(JFrame::new(self.heap, c, main));
         self.thread.run();
 
         Ok(())
     }
 }
-
 
 #[derive(Debug)]
 pub struct JThread {
@@ -71,7 +68,6 @@ impl JThread {
     pub fn cur_frame(&self) -> Rp<JFrame> {
         self.stack.cur_frame()
     }
-
 
     pub fn run(&mut self) {
         use crate::ins::Ins;
@@ -139,6 +135,7 @@ impl JStack {
     }
 }
 
+impl Unmanged for JFrame {}
 
 #[derive(Debug)]
 pub struct JFrame {
@@ -153,9 +150,7 @@ macro_rules! xx_ref {
     ($f: ident) => {
         pub fn $f(&mut self, i: usize) -> Rp<SymRef> {
             let mut cur = self.class.get_mut();
-            let sym = {
-                self.heap.$f(&mut cur, i)
-            };
+            let sym = { self.heap.$f(&mut cur, i) };
             sym
         }
     };
@@ -165,7 +160,10 @@ impl JFrame {
     pub fn new(heap: Rp<Heap>, class: Rp<Class>, method: Rp<ClassMember>) -> Self {
         Self {
             local_vars: vec![0u64; method.max_locals],
-            stack: OpStack { slots: vec![0u64; method.max_stack], size: 0 },
+            stack: OpStack {
+                slots: vec![0u64; method.max_stack],
+                size: 0,
+            },
             method,
             class,
             heap,

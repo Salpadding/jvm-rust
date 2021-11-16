@@ -2,7 +2,7 @@ use crate::cp::ClassFile;
 use crate::entry;
 use crate::entry::Entry;
 use crate::heap::class::Class;
-use crate::rp::Rp;
+use crate::rp::{Rp, Unmanged};
 use crate::StringErr;
 use std::collections::BTreeMap;
 
@@ -25,7 +25,7 @@ impl ClassLoader {
     }
 
     pub fn get(&self, i: usize) -> Rp<Class> {
-        Rp::from_ref(&self.classes[i])
+        self.classes[i].as_rp()
     }
 
     pub fn load(&mut self, name: &str) -> Rp<Class> {
@@ -53,7 +53,7 @@ impl ClassLoader {
             .fields
             .iter_mut()
             .filter(|x| x.access_flags.is_static())
-            .map(|x| Rp::from_ref(x))
+            .map(|x| x.as_rp())
             .collect();
 
         // set field index
@@ -78,7 +78,7 @@ impl ClassLoader {
         let mut i = base;
         for f in cl.fields.iter_mut().filter(|x| !x.access_flags.is_static()) {
             f.id = i as i32;
-            cl.ins_fields.push(Rp::from_ref(f));
+            cl.ins_fields.push(f.as_rp());
             i += 1;
         }
 
@@ -86,7 +86,7 @@ impl ClassLoader {
         self.classes.push(cl);
 
         // link members to class
-        let mut p = Rp::from_ref(&self.classes[id]);
+        let mut p = self.classes[id].as_rp();
         p.id = id;
 
         let n = p;

@@ -4,16 +4,24 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+// the memory manage belongs to programmer, not compiler
+pub trait Unmanged: Sized {
+    #[inline]
+    fn as_rp(&self) -> Rp<Self> {
+        Rp::from_ref(&self)
+    }
+}
+
 pub type Np<T> = Rp<T>;
 
 // unsafe raw pointer wrapper, which is also thread unsafe
 // for escape compiler check
-pub struct Rp<T> {
+pub struct Rp<T: Unmanged> {
     p: PhantomData<T>,
     ptr: usize,
 }
 
-impl<T: Debug> Debug for Rp<T> {
+impl<T: Debug + Unmanged> Debug for Rp<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_null() {
             f.write_str("NULL")
@@ -23,7 +31,7 @@ impl<T: Debug> Debug for Rp<T> {
     }
 }
 
-impl<T> Clone for Rp<T> {
+impl<T: Unmanged> Clone for Rp<T> {
     fn clone(&self) -> Self {
         Self {
             p: PhantomData,
@@ -32,16 +40,16 @@ impl<T> Clone for Rp<T> {
     }
 }
 
-impl<T> Copy for Rp<T> {}
+impl<T: Unmanged> Copy for Rp<T> {}
 
-impl<T> Default for Rp<T> {
+impl<T: Unmanged> Default for Rp<T> {
     #[inline]
     fn default() -> Self {
         Self::null()
     }
 }
 
-impl<T> Deref for Rp<T> {
+impl<T: Unmanged> Deref for Rp<T> {
     type Target = T;
 
     #[inline]
@@ -50,21 +58,22 @@ impl<T> Deref for Rp<T> {
     }
 }
 
-impl<T> DerefMut for Rp<T> {
+impl<T: Unmanged> DerefMut for Rp<T> {
     #[inline]
     fn deref_mut(&mut self) -> &'static mut T {
         self.get_mut()
     }
 }
 
-impl<T> AsRef<T> for Rp<T> {
+impl<T: Unmanged> AsRef<T> for Rp<T> {
     #[inline]
     fn as_ref(&self) -> &'static T {
         self.get_mut()
     }
 }
 
-impl<T> Rp<T> {
+impl<T: Unmanged> Rp<T> {
+    #[inline]
     pub fn from_ref(x: &T) -> Rp<T> {
         {
             Rp {

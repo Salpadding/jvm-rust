@@ -1,8 +1,10 @@
 use crate::attr::AttrInfo;
 use crate::cp::{ClassFile, ConstantPool, MemberInfo};
 use crate::heap::misc::{AccessFlags, SymRef};
-use crate::rp::{Np, Rp};
+use crate::rp::{Np, Rp, Unmanged};
 use core::fmt::Debug;
+
+impl Unmanged for Class {}
 
 impl From<ClassFile> for Class {
     fn from(mut c: ClassFile) -> Self {
@@ -48,6 +50,8 @@ impl From<&MemberInfo> for ClassMember {
         r
     }
 }
+
+impl Unmanged for Object {}
 
 pub struct Object {
     pub class: Rp<Class>,
@@ -108,7 +112,7 @@ impl Class {
                 && &m.desc == "([Ljava/lang/String;)V"
                 && m.access_flags.is_static()
             {
-                return Rp::from_ref(m);
+                return m.as_rp();
             }
         }
         return Rp::null();
@@ -233,6 +237,7 @@ impl Class {
     }
 }
 
+impl Unmanged for ClassMember {}
 #[derive(Default)]
 pub struct ClassMember {
     pub access_flags: AccessFlags,
