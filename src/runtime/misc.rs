@@ -157,6 +157,11 @@ impl OpStack {
     pub fn push_obj(&mut self, obj: Rp<Object>) {
         self.push_cell(obj.ptr() as u64)
     }
+
+    #[inline]
+    pub fn back_obj(&self, i: usize) -> Rp<Object> {
+        Rp::from_ptr(self.slots[self.size - i] as usize)
+    }
 }
 
 // Each frame (§2.6) contains an array of variables known as its local variables. The length of the local variable array of a frame is determined at compile-time and supplied in the binary representation of a class or interface along with the code for the method associated with the frame (§4.7.3).
@@ -284,15 +289,4 @@ mod test {
         assert_eq!(s.pop_u32(), 100);
     }
 
-    #[test]
-    fn test_jvm() {
-        let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
-        jvm.run_class("test/Gauss").unwrap();
-    }
-
-    #[test]
-    fn test_jvm_obj() {
-        let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
-        jvm.run_class("test/MyObject").unwrap();
-    }
 }

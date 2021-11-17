@@ -5,7 +5,6 @@ use crate::rp::{Rp, Unmanged};
 use core::fmt::Debug;
 use std::ops::Deref;
 
-
 impl Unmanged for Class {}
 
 impl From<ClassFile> for Class {
@@ -120,7 +119,7 @@ impl Class {
         return Rp::null();
     }
 
-    pub fn lookup_method(&self, name: &str, desc: &str) -> Rp<ClassMember> {
+    pub fn lookup_method_in_class(&self, name: &str, desc: &str) -> Rp<ClassMember> {
         let mut cur: &Class = &self;
 
         // lookup in class
@@ -136,12 +135,20 @@ impl Class {
             cur = &cur.super_class;
         }
 
+        Rp::null()
+    }
+
+    pub fn lookup_method(&self, name: &str, desc: &str) -> Rp<ClassMember> {
+        let m = self.lookup_method_in_class(name, desc);
+        if !m.is_null() {
+            return m;
+        }
         // lookup in super interfaces
         Self::lookup_method_in_ifaces(&self.interfaces, name, desc)
     }
 
+    // lookup in interfaces and parent interfaces
     pub fn lookup_iface_method(&self, name: &str, desc: &str) -> Rp<ClassMember> {
-        // lookup in interfaces
         for m in self.methods.iter() {
             if m.name == name && m.desc == desc {
                 return m.as_rp();
@@ -295,7 +302,7 @@ impl Class {
                 }
                 "F" => self.static_vars[i] = self.cp.f32(f.cons_i).to_bits() as u64,
                 "D" => self.static_vars[i] = self.cp.f64(f.cons_i).to_bits(),
-                _ => panic!("invalid final type {}", &f.desc),
+                _ => {}
             }
         }
     }

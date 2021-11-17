@@ -1,4 +1,5 @@
 use crate::utils;
+use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::fs;
 use std::fs::File;
@@ -57,6 +58,7 @@ impl Entry for DirEntry {
 pub struct ZipEntry {
     // path for zip
     zip: String,
+    data: BTreeMap<String, Vec<u8>>,
 }
 
 impl ZipEntry {
@@ -69,29 +71,23 @@ impl ZipEntry {
         let buf = fs::canonicalize(path).unwrap();
         let p = buf.into_os_string().into_string().unwrap();
 
-        Ok(ZipEntry { zip: p })
-    }
-}
+        let mut e = ZipEntry {
+            zip: p,
+            data: BTreeMap::new(),
+        };
 
-impl Entry for ZipEntry {
-    fn read_class(&self, name: &str) -> Option<Vec<u8>> {
-        let full_name = format!("{}.class", name);
-        let file = File::open(&self.zip);
-        if file.is_err() {
-            return None;
-        }
-
-        let file = file.unwrap();
+        let file = File::open(&e.zip)?;
         let archive = zip::ZipArchive::new(file);
 
         if archive.is_err() {
-            return None;
+            return err!("invalid zip file");
         }
         let mut archive = archive.unwrap();
 
         for i in 0..archive.len() {
             let mut file = archive.by_index(i).unwrap();
-            if file.name() != &full_name {
+
+            if !file.name().ends_with(".class") {
                 continue;
             }
 
@@ -100,10 +96,17 @@ impl Entry for ZipEntry {
             let mut r: Vec<u8> = Vec::new();
             file.read_to_end(&mut r).unwrap();
 
-            return Some(r);
+            e.data.insert(file.name().to_string(), r);
         }
 
-        return None;
+        Ok(e)
+    }
+}
+
+impl Entry for ZipEntry {
+    fn read_class(&self, name: &str) -> Option<Vec<u8>> {
+        let full_name = format!("{}.class", name);
+        self.data.get(&full_name).map(|x| x.to_vec())
     }
 }
 

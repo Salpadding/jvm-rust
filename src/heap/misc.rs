@@ -254,7 +254,7 @@ impl DescriptorParser<'_> {
     fn parse_no_array(&mut self) -> String {
         let cur = self.u8();
         match cur {
-            b'B' | b'Z' | b'J' | b'I' | b'D' | b'F' | b'S' | b'V' => {
+            b'B' | b'Z' | b'J' | b'I' | b'D' | b'F' | b'S' | b'V' | b'C' => {
                 return unsafe {
                     String::from_utf8_unchecked(self.bytes[self.off - 1..self.off].to_vec())
                 };
@@ -269,7 +269,9 @@ impl DescriptorParser<'_> {
                 self.u8();
                 return s;
             }
-            _ => panic!("parse no array failed"),
+            _ => panic!("parse no array failed {}", unsafe {
+                String::from_utf8_unchecked(self.bytes.to_vec())
+            }),
         }
     }
 }

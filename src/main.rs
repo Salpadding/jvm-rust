@@ -44,7 +44,16 @@ mod runtime;
 mod utils;
 
 fn main() {
-    println!("Hello, world!");
+    use crate::runtime::vm::Jvm;
+
+    let cp = match std::env::var("CLASSPATH") {
+        Ok(v) => v,
+        Err(_) => ".".to_string(),
+    };
+
+    let args: Vec<String> = std::env::args().collect();
+    let mut jvm = Jvm::new(&cp).unwrap();
+    jvm.run_class(&args[1]).unwrap();
 }
 
 #[cfg(test)]

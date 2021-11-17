@@ -54,7 +54,6 @@ pub trait Refs {
 impl Ins for u8 {
     fn step(self, rd: &mut BytesReader, th: &mut JThread, c: &mut JFrame, wide: bool) {
         let op: OpCode = self.into();
-
         match self {
             0x00..=0x14 => op.con(rd, th, c),
             0x15..=0x35 => op.load(rd, th, c, wide),

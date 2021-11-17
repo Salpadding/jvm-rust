@@ -1,6 +1,7 @@
 use crate::heap::misc::JTypeDescriptor;
 use crate::ins::Refs;
 use crate::op::OpCode;
+use crate::runtime::misc::Slots;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
 
 impl Refs for OpCode {
@@ -19,15 +20,52 @@ impl Refs for OpCode {
 
                 mf.stack.push_obj(ptr);
             }
-            invokestatic | invokespecial => {
-                let m = mf.method_ref(rd.u16() as usize);
-                let mut new_frame = th.new_frame(m.member);
+            invokestatic | invokespecial | invokevirtual | invokeinterface => {
+                let sym = if self == invokeinterface {
+                    mf.iface_ref(rd.u16() as usize)
+                } else {
+                    mf.method_ref(rd.u16() as usize)
+                };
+                if self == invokeinterface {
+                    rd.u16();
+                }
+
+                let mut m = sym.member;
+
+                // hack System.out.println
+                if m.name == "println" {
+                    match m.desc.as_str() {
+                        "(I)V" => {
+                            println!("{}", mf.stack.slots.get_i32(mf.stack.size - 1));
+                            mf.stack.pop_u32();
+                        }
+                        "(J)V" => {
+                            println!("{}", mf.stack.slots.get_u64(mf.stack.size - 2) as i64);
+                            mf.stack.pop_u64();
+                        }
+                        _ => {}
+                    }
+                    return;
+                }
+
+                // invoke virtual, resolve method in object class
+                if self == invokevirtual || self == invokeinterface {
+                    let obj = mf.stack.back_obj(sym.member.arg_cells + 1);
+                    if obj.is_null() {
+                        panic!("java.lang.NullPointerException");
+                    }
+
+                    m = obj.class.lookup_method_in_class(&sym.name, &sym.desc);
+                }
+
+                let mut new_frame = th.new_frame(m);
                 mf.pass_args(
                     &mut new_frame,
                     if self == invokestatic {
-                        m.member.arg_cells
+                        sym.member.arg_cells
                     } else {
-                        m.member.arg_cells + 1
+                        // +1 this pointer
+                        sym.member.arg_cells + 1
                     },
                 );
                 th.stack.push_frame(new_frame);

@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 pub struct ClassLoader {
     entry: Box<dyn Entry>,
     loaded: BTreeMap<String, Rp<Class>>,
-    classes: Vec<Class>,
+    classes: Vec<Rp<Class>>,
 }
 
 impl ClassLoader {
@@ -88,11 +88,11 @@ impl ClassLoader {
         }
 
         let class_id = self.classes.len();
-        self.classes.push(cl);
+        self.classes.push(Rp::new(cl));
 
         // link members to class
-        let mut p = self.classes[class_id].as_rp();
-        p.id = class_id;
+        let mut p = self.classes[class_id];
+        p.get_mut().id = class_id;
 
         let n = p;
         for f in p.fields.iter_mut() {

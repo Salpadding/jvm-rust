@@ -182,6 +182,7 @@ impl JFrame {
     xx_ref!(class_ref);
     xx_ref!(field_ref);
     xx_ref!(method_ref);
+    xx_ref!(iface_ref);
 
     pub fn new_obj(&self, class: Rp<Class>) -> Rp<Object> {
         self.heap.new_obj(class)
@@ -191,5 +192,34 @@ impl JFrame {
         other.local_vars[..arg_cells]
             .copy_from_slice(&self.stack.slots[self.stack.size - arg_cells..self.stack.size]);
         self.stack.size -= arg_cells;
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::runtime::vm::Jvm;
+
+    #[test]
+    fn test_jvm() {
+        let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
+        jvm.run_class("test/Gauss").unwrap();
+    }
+
+    #[test]
+    fn test_jvm_obj() {
+        let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
+        jvm.run_class("test/MyObject").unwrap();
+    }
+
+    #[test]
+    fn test_jvm_invoke() {
+        let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
+        jvm.run_class("test/InvokeTest").unwrap();
+    }
+
+    #[test]
+    fn test_fibo() {
+        let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
+        jvm.run_class("test/FibonacciTest").unwrap();
     }
 }
