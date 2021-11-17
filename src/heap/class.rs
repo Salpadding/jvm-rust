@@ -1,11 +1,10 @@
 use crate::attr::AttrInfo;
 use crate::cp::{ClassFile, ConstantPool, MemberInfo};
 use crate::heap::misc::{AccessFlags, SymRef};
-use crate::rp::{Np, Rp, Unmanged};
+use crate::rp::{Rp, Unmanged};
 use core::fmt::Debug;
 use std::ops::Deref;
 
-use super::misc::MethodDescriptor;
 
 impl Unmanged for Class {}
 
@@ -32,7 +31,6 @@ impl From<ClassFile> for Class {
 impl From<&MemberInfo> for ClassMember {
     fn from(m: &MemberInfo) -> Self {
         let mut r = ClassMember::default();
-        r.id = -1;
         r.name = m.name.to_string();
         r.access_flags = AccessFlags(m.access_flags);
         r.desc = m.desc.to_string();
@@ -56,9 +54,10 @@ impl From<&MemberInfo> for ClassMember {
 
 impl Unmanged for Object {}
 
+// represents both object and primitive array
 pub struct Object {
     pub class: Rp<Class>,
-    pub fields: Vec<u64>,
+    pub data: Vec<u64>,
 }
 
 impl Object {
@@ -77,7 +76,7 @@ pub struct Class {
     pub fields: Vec<ClassMember>,
     pub methods: Vec<ClassMember>,
 
-    pub super_class: Np<Class>,
+    pub super_class: Rp<Class>,
     pub interfaces: Vec<Rp<Class>>,
 
     pub static_fields: Vec<Rp<ClassMember>>,
@@ -153,11 +152,15 @@ impl Class {
         Self::lookup_method_in_ifaces(&self.interfaces, name, desc)
     }
 
-    fn lookup_method_in_ifaces<T: Deref<Target=Class>>(ifaces: &[T], name: &str, desc: &str) -> Rp<ClassMember> {
+    fn lookup_method_in_ifaces<T: Deref<Target = Class>>(
+        ifaces: &[T],
+        name: &str,
+        desc: &str,
+    ) -> Rp<ClassMember> {
         for i in ifaces.iter() {
             for m in i.methods.iter() {
                 if m.name == name && m.desc == desc {
-                    return m.as_rp()
+                    return m.as_rp();
                 }
             }
 
@@ -170,7 +173,6 @@ impl Class {
 
         Rp::null()
     }
-    
 
     pub fn lookup_field(&self, name: &str, desc: &str) -> Rp<ClassMember> {
         // lookup in this class fields
@@ -179,7 +181,6 @@ impl Class {
                 return f.as_rp();
             }
         }
-
 
         // lookup in implements
         for iface in self.interfaces.iter() {
@@ -210,12 +211,12 @@ impl Class {
     }
 
     pub fn set_instance(&self, obj: &mut Object, i: usize, v: u64) {
-        obj.fields[i] = v;
+        obj.data[i] = v;
         println!(
             "set field {} of class {} obj class = {}",
             self.ins_fields[i].name, self.name, obj.class.name
         );
-        println!("instance vars of class {} = {:?}", self.name, obj.fields);
+        println!("instance vars of class {} = {:?}", self.name, obj.data);
     }
 
     pub fn get_static(&self, i: usize) -> u64 {
@@ -223,7 +224,7 @@ impl Class {
     }
 
     pub fn get_instance(&self, obj: &Object, i: usize) -> u64 {
-        obj.fields[i]
+        obj.data[i]
     }
 
     pub fn is_assignable(&self, from: &Class) -> bool {
@@ -310,7 +311,7 @@ pub struct ClassMember {
     pub max_locals: usize,
     pub code: Vec<u8>,
     pub cons_i: usize,
-    pub id: i32,
+    pub id: usize,
     pub class: Rp<Class>,
     pub arg_cells: usize,
 }

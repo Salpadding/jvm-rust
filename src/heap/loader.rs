@@ -63,7 +63,7 @@ impl ClassLoader {
 
         // set field index
         for i in 0..cl.static_fields.len() {
-            cl.static_fields[i].id = i as i32;
+            cl.static_fields[i].id = i;
         }
 
         cl.static_vars = vec![0u64; cl.static_fields.len()];
@@ -82,17 +82,17 @@ impl ClassLoader {
 
         let mut i = base;
         for f in cl.fields.iter_mut().filter(|x| !x.access_flags.is_static()) {
-            f.id = i as i32;
+            f.id = i;
             cl.ins_fields.push(f.as_rp());
             i += 1;
         }
 
-        let id = self.classes.len();
+        let class_id = self.classes.len();
         self.classes.push(cl);
 
         // link members to class
-        let mut p = self.classes[id].as_rp();
-        p.id = id;
+        let mut p = self.classes[class_id].as_rp();
+        p.id = class_id;
 
         let n = p;
         for f in p.fields.iter_mut() {
@@ -102,7 +102,7 @@ impl ClassLoader {
         for m in p.methods.iter_mut() {
             m.class = n;
         }
-        self.loaded.insert(name.to_string(), p);
+        self.loaded.insert(name.to_string(), n);
         p
     }
 }

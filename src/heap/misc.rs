@@ -130,7 +130,7 @@ impl Heap {
     pub fn new_obj(&self, class: Rp<Class>) -> Rp<Object> {
         let obj = Object {
             class: class,
-            fields: vec![0u64; class.ins_fields.len()],
+            data: vec![0u64; class.ins_fields.len()],
         };
 
         Rp::new(obj)
@@ -212,13 +212,13 @@ impl DescriptorParser<'_> {
             params,
             ret,
             jtypes,
-            arg_cells: 0
+            arg_cells: 0,
         };
 
         for t in r.jtypes.iter() {
             match t {
-                JType::A | JType::IF => { r.arg_cells += 1},
-                _ => { r.arg_cells += 2},
+                JType::A | JType::IF => r.arg_cells += 1,
+                _ => r.arg_cells += 2,
             }
         }
 

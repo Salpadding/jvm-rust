@@ -12,8 +12,6 @@ pub trait Unmanged: Sized {
     }
 }
 
-pub type Np<T> = Rp<T>;
-
 // unsafe raw pointer wrapper, which is also thread unsafe
 // for escape compiler check
 pub struct Rp<T: Unmanged> {
@@ -131,6 +129,7 @@ impl<T: Unmanged> Rp<T> {
         self.ptr as *mut T
     }
 
+    // drop is only available for Rp created by new
     #[inline]
     pub fn drop(&mut self) {
         if self.is_null() {

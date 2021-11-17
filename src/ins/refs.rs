@@ -21,11 +21,6 @@ impl Refs for OpCode {
             }
             invokestatic | invokespecial => {
                 let m = mf.method_ref(rd.u16() as usize);
-                if self == invokespecial {
-                    println!("invoke special method name = {} method class = {} ref class = {} stack size = {}", m.member.name, m.member.class.name, m.class.name, m.member.max_stack);
-                } else {
-                    println!("invoke static method name = {}", m.member.name);
-                }
                 let mut new_frame = th.new_frame(m.member);
                 mf.pass_args(
                     &mut new_frame,
@@ -73,20 +68,16 @@ impl Refs for OpCode {
                 match sym.desc.jtype() {
                     crate::heap::misc::JType::IF => {
                         match self {
-                            putstatic => {
-                                class.set_static(sym.member.id as usize, mf.stack.pop_u32() as u64)
-                            }
-                            getstatic => mf
-                                .stack
-                                .push_u32(class.get_static(sym.member.id as usize) as u32),
+                            putstatic => class.set_static(sym.member.id, mf.stack.pop_u32() as u64),
+                            getstatic => mf.stack.push_u32(class.get_static(sym.member.id) as u32),
                             putfield => {
                                 let v = mf.stack.pop_u32();
                                 let obj = mf.stack.pop_obj();
-                                class.set_instance(obj.get_mut(), sym.member.id as usize, v as u64);
+                                class.set_instance(obj.get_mut(), sym.member.id, v as u64);
                             }
                             getfield => {
                                 let obj = mf.stack.pop_obj();
-                                let v = class.get_instance(&obj, sym.member.id as usize);
+                                let v = class.get_instance(&obj, sym.member.id);
                                 mf.stack.push_u32(v as u32);
                             }
                             _ => {}
@@ -94,36 +85,32 @@ impl Refs for OpCode {
                     }
                     crate::heap::misc::JType::DJ => {
                         match self {
-                            putstatic => {
-                                class.set_static(sym.member.id as usize, mf.stack.pop_u64() as u64)
-                            }
-                            getstatic => {
-                                mf.stack.push_u64(class.get_static(sym.member.id as usize))
-                            }
+                            putstatic => class.set_static(sym.member.id, mf.stack.pop_u64() as u64),
+                            getstatic => mf.stack.push_u64(class.get_static(sym.member.id)),
                             putfield => {
                                 let v = mf.stack.pop_u64();
                                 let obj = mf.stack.pop_obj();
-                                class.set_instance(obj.get_mut(), sym.member.id as usize, v);
+                                class.set_instance(obj.get_mut(), sym.member.id, v);
                             }
                             getfield => {
                                 let obj = mf.stack.pop_obj();
-                                let v = class.get_instance(&obj, sym.member.id as usize);
+                                let v = class.get_instance(&obj, sym.member.id);
                                 mf.stack.push_u64(v);
                             }
                             _ => {}
                         };
                     }
                     crate::heap::misc::JType::A => match self {
-                        putstatic => class.set_static(sym.member.id as usize, mf.stack.pop_cell()),
-                        getstatic => mf.stack.push_cell(class.get_static(sym.member.id as usize)),
+                        putstatic => class.set_static(sym.member.id, mf.stack.pop_cell()),
+                        getstatic => mf.stack.push_cell(class.get_static(sym.member.id)),
                         putfield => {
                             let v = mf.stack.pop_cell();
                             let obj = mf.stack.pop_obj();
-                            class.set_instance(obj.get_mut(), sym.member.id as usize, v);
+                            class.set_instance(obj.get_mut(), sym.member.id, v);
                         }
                         getfield => {
                             let obj = mf.stack.pop_obj();
-                            let v = class.get_instance(&obj, sym.member.id as usize);
+                            let v = class.get_instance(&obj, sym.member.id);
                             mf.stack.push_cell(v);
                         }
                         _ => {}
