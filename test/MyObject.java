@@ -3,6 +3,12 @@ package test;
 public class MyObject {
     public static int staticVar;
     public int instanceVar;
+    public int instanceVar1;
+
+    public MyObject() {
+        this.instanceVar = 1111;
+        this.instanceVar1 = 1111 * 45;
+    }
 
     public static void main(String[] args) {
         int u = 32768;

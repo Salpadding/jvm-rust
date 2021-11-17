@@ -46,3 +46,13 @@ mod utils;
 fn main() {
     println!("Hello, world!");
 }
+
+#[cfg(test)]
+mod test {
+    use std::mem::size_of;
+
+    #[test]
+    fn test_ptr_size() {
+        println!("pointer size = {}", size_of::<usize>())
+    }
+}

@@ -19,15 +19,23 @@ impl Refs for OpCode {
 
                 mf.stack.push_obj(ptr);
             }
-            invokestatic => {
+            invokestatic | invokespecial => {
                 let m = mf.method_ref(rd.u16() as usize);
+                if self == invokespecial {
+                    println!("invoke special method name = {} method class = {} ref class = {} stack size = {}", m.member.name, m.member.class.name, m.class.name, m.member.max_stack);
+                } else {
+                    println!("invoke static method name = {}", m.member.name);
+                }
                 let mut new_frame = th.new_frame(m.member);
-                mf.pass_args(&mut new_frame, m.member.arg_cells);
+                mf.pass_args(
+                    &mut new_frame,
+                    if self == invokestatic {
+                        m.member.arg_cells
+                    } else {
+                        m.member.arg_cells + 1
+                    },
+                );
                 th.stack.push_frame(new_frame);
-            }
-            invokespecial => {
-                rd.u16();
-                mf.stack.pop_cell();
             }
             instanceof | checkcast => {
                 let i = rd.u16() as usize;
