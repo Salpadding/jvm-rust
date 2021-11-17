@@ -1,7 +1,6 @@
 use crate::heap::misc::JTypeDescriptor;
 use crate::ins::Refs;
 use crate::op::OpCode;
-use crate::runtime::misc::Slots;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
 
 impl Refs for OpCode {
@@ -23,7 +22,7 @@ impl Refs for OpCode {
             invokestatic => {
                 let m = mf.method_ref(rd.u16() as usize);
                 let mut new_frame = th.new_frame(m.member);
-                mf.pass_args(&mut new_frame, &m.member.m_desc.jtypes);
+                mf.pass_args(&mut new_frame, m.member.arg_cells);
                 th.stack.push_frame(new_frame);
             }
             invokespecial => {

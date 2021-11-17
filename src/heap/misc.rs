@@ -156,6 +156,7 @@ pub struct MethodDescriptor {
     pub params: Vec<String>,
     pub jtypes: Vec<JType>,
     pub ret: String,
+    pub arg_cells: usize,
 }
 
 #[derive(Debug)]
@@ -207,11 +208,21 @@ impl DescriptorParser<'_> {
 
         let ret = self.parse_param();
 
-        MethodDescriptor {
+        let mut r = MethodDescriptor {
             params,
             ret,
             jtypes,
+            arg_cells: 0
+        };
+
+        for t in r.jtypes.iter() {
+            match t {
+                JType::A | JType::IF => { r.arg_cells += 1},
+                _ => { r.arg_cells += 2},
+            }
         }
+
+        r
     }
 
     fn parse_params(&mut self) -> Vec<String> {

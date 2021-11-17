@@ -44,7 +44,7 @@ impl ClassLoader {
         let mut cl: Class = file.into();
         for m in cl.methods.iter_mut() {
             let mut parser = DescriptorParser::new(m.desc.as_bytes());
-            m.m_desc = parser.parse_method();
+            m.arg_cells = parser.parse_method().arg_cells;
         }
 
         // load super and interfaces

@@ -1,4 +1,5 @@
-use crate::heap::misc::JType;
+use std::mem::MaybeUninit;
+
 use crate::heap::{class::Class, class::ClassMember, class::Object, misc::Heap, misc::SymRef};
 use crate::rp::{Rp, Unmanged};
 use crate::runtime::misc::{BytesReader, OpStack};
@@ -33,9 +34,7 @@ impl Jvm {
             return err!("class {} has no main method", &c.name);
         }
 
-        self.thread
-            .stack
-            .push_frame(JFrame::new(self.heap, c, main));
+        self.thread.stack.push_frame(JFrame::new(self.heap, main));
         self.thread.run();
 
         Ok(())
@@ -67,7 +66,7 @@ impl JThread {
     }
 
     pub fn new_frame(&self, m: Rp<ClassMember>) -> JFrame {
-        JFrame::new(self.heap, m.class, m)
+        JFrame::new(self.heap, m)
     }
 
     pub fn cur_frame(&self) -> Rp<JFrame> {
@@ -108,39 +107,35 @@ impl JThread {
 }
 
 // TODO: limit stack size
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct JStack {
-    pub max_size: usize,
-    pub frames: Vec<Rp<JFrame>>,
+    pub frames: [JFrame; MAX_JSTACK_SIZE],
     pub size: usize,
 }
 
 impl JStack {
     fn new() -> Self {
         Self {
-            max_size: MAX_JSTACK_SIZE,
-            frames: vec![Rp::null(); MAX_JSTACK_SIZE],
+            frames: unsafe { MaybeUninit::uninit().assume_init() },
             size: 0,
         }
     }
 
     pub fn push_frame(&mut self, frame: JFrame) {
-        self.frames[self.size] = Rp::new(frame);
+        self.frames[self.size] = frame;
         self.size += 1;
     }
 
-    pub fn pop_frame(&mut self) -> Rp<JFrame> {
-        let top = self.frames[self.size - 1];
+    pub fn pop_frame(&mut self) {
         self.size -= 1;
-        top
     }
 
     pub fn prev_frame(&self) -> Rp<JFrame> {
-        self.frames[self.size - 2]
+        self.frames[self.size - 2].as_rp()
     }
 
     fn cur_frame(&self) -> Rp<JFrame> {
-        self.frames[self.size - 1]
+        self.frames[self.size - 1].as_rp()
     }
 
     fn is_empty(&self) -> bool {
@@ -171,7 +166,7 @@ macro_rules! xx_ref {
 }
 
 impl JFrame {
-    pub fn new(heap: Rp<Heap>, class: Rp<Class>, method: Rp<ClassMember>) -> Self {
+    fn new(heap: Rp<Heap>, method: Rp<ClassMember>) -> Self {
         Self {
             local_vars: vec![0u64; method.max_locals],
             stack: OpStack {
@@ -179,7 +174,7 @@ impl JFrame {
                 size: 0,
             },
             method,
-            class,
+            class: method.class,
             heap,
             next_pc: 0,
         }
@@ -193,34 +188,9 @@ impl JFrame {
         self.heap.new_obj(class)
     }
 
-    pub fn pass_args(&mut self, other: &mut JFrame, types: &[JType]) {
-        let mut args = vec![0u64; types.len()];
-        for i in (0..args.len()).rev() {
-            args[i] = match &types[i] {
-                JType::IF => self.stack.pop_u32() as u64,
-                JType::DJ => self.stack.pop_u64(),
-                JType::A => self.stack.pop_cell(),
-            }
-        }
-        use crate::runtime::misc::Slots;
-
-        let mut j = 0usize;
-        for i in 0..args.len() {
-            println!("pass arg i = {} v=  {} type = {:?} ", i, args[i], types[i]);
-            match &types[i] {
-                JType::IF => {
-                    other.local_vars.set_u32(j, args[i] as u32);
-                    j += 1;
-                }
-                JType::DJ => {
-                    other.local_vars.set_u64(j, args[i]);
-                    j += 2;
-                }
-                JType::A => {
-                    other.local_vars.set_cell(j, args[i]);
-                    j += 1;
-                }
-            }
-        }
+    pub fn pass_args(&mut self, other: &mut JFrame, arg_cells: usize) {
+        other.local_vars[..arg_cells]
+            .copy_from_slice(&self.stack.slots[self.stack.size - arg_cells..self.stack.size]);
+        self.stack.size -= arg_cells;
     }
 }

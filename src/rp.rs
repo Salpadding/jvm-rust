@@ -107,6 +107,7 @@ impl<T: Unmanged> Rp<T> {
         }
     }
 
+    // allocate on heap
     #[inline]
     pub fn new(x: T) -> Self {
         let b = Box::new(x);
@@ -122,8 +123,7 @@ impl<T: Unmanged> Rp<T> {
         if self.is_null() {
             panic!("null pointer");
         }
-        let b = unsafe { Box::from_raw(self.ptr as *mut T) };
-        Box::leak(b)
+        unsafe { &mut *(self.ptr as *mut T) }
     }
 
     #[inline]

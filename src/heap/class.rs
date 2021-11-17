@@ -312,7 +312,7 @@ pub struct ClassMember {
     pub cons_i: usize,
     pub id: i32,
     pub class: Rp<Class>,
-    pub m_desc: MethodDescriptor,
+    pub arg_cells: usize,
 }
 
 impl Debug for ClassMember {
