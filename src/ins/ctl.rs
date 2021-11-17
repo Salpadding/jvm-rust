@@ -89,6 +89,25 @@ impl Control for OpCode {
                 let ls = LookupSwitch::read_from(rd);
                 ls.exec(th, rd, mf);
             }
+            ireturn | lreturn | freturn | dreturn | areturn | return_void => {
+                if self == ireturn || self == freturn {
+                    let c = mf.stack.pop_u32();
+                    th.stack.prev_frame().stack.push_u32(c)
+                }
+
+                if self == lreturn || self == dreturn {
+                    let c = mf.stack.pop_u64();
+
+                    println!("lreturn {}", c);
+                    th.stack.prev_frame().stack.push_u64(c)
+                }
+
+                if self == areturn {
+                    let c = mf.stack.pop_cell();
+                    th.stack.prev_frame().stack.push_cell(c)
+                }
+                th.stack.pop_frame();
+            }
             _ => {
                 panic!("invalid op {:?}", self);
             }

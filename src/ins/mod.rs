@@ -63,12 +63,7 @@ impl Ins for u8 {
             0x60..=0x84 => op.math(rd, th, c, wide),
             0x85..=0x93 => op.conv(rd, th, c),
             0x94..=0xa6 | 0xc6 | 0xc7 => op.cmp(rd, th, c),
-            0xa7..=0xb0 | 0xc8 => op.ctl(rd, th, c),
-            0xb1 => {
-                let locals = &c.local_vars;
-                th.stack.pop_frame();
-                println!("return locals = {:?}", locals);
-            }
+            0xa7..=0xb0 | 0xb1 => op.ctl(rd, th, c),
             0xb2..=0xc3 => {
                 op.refs(rd, th, c);
             }

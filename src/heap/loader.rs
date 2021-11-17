@@ -2,6 +2,7 @@ use crate::cp::ClassFile;
 use crate::entry;
 use crate::entry::Entry;
 use crate::heap::class::Class;
+use crate::heap::misc::DescriptorParser;
 use crate::rp::{Rp, Unmanged};
 use crate::StringErr;
 use std::collections::BTreeMap;
@@ -41,6 +42,10 @@ impl ClassLoader {
     fn define(&mut self, name: &str, bytes: Vec<u8>) -> Rp<Class> {
         let file = ClassFile::new(bytes);
         let mut cl: Class = file.into();
+        for m in cl.methods.iter_mut() {
+            let mut parser = DescriptorParser::new(m.desc.as_bytes());
+            m.m_desc = parser.parse_method();
+        }
 
         // load super and interfaces
         if &cl.super_name != "" {

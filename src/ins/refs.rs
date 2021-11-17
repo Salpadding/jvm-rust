@@ -1,5 +1,7 @@
+use crate::heap::misc::JTypeDescriptor;
 use crate::ins::Refs;
 use crate::op::OpCode;
+use crate::runtime::misc::Slots;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
 
 impl Refs for OpCode {
@@ -17,6 +19,12 @@ impl Refs for OpCode {
                 };
 
                 mf.stack.push_obj(ptr);
+            }
+            invokestatic => {
+                let m = mf.method_ref(rd.u16() as usize);
+                let mut new_frame = th.new_frame(m.member);
+                mf.pass_args(&mut new_frame, &m.member.m_desc.jtypes);
+                th.stack.push_frame(new_frame);
             }
             invokespecial => {
                 rd.u16();
@@ -55,8 +63,8 @@ impl Refs for OpCode {
 
                 let mut class = sym.class;
 
-                match sym.desc.as_bytes()[0] {
-                    b'Z' | b'B' | b'C' | b'S' | b'I' | b'F' => {
+                match sym.desc.jtype() {
+                    crate::heap::misc::JType::IF => {
                         match self {
                             putstatic => {
                                 class.set_static(sym.member.id as usize, mf.stack.pop_u32() as u64)
@@ -77,7 +85,7 @@ impl Refs for OpCode {
                             _ => {}
                         };
                     }
-                    b'D' | b'J' => {
+                    crate::heap::misc::JType::DJ => {
                         match self {
                             putstatic => {
                                 class.set_static(sym.member.id as usize, mf.stack.pop_u64() as u64)
@@ -98,7 +106,7 @@ impl Refs for OpCode {
                             _ => {}
                         };
                     }
-                    b'L' | b'[' => match self {
+                    crate::heap::misc::JType::A => match self {
                         putstatic => class.set_static(sym.member.id as usize, mf.stack.pop_cell()),
                         getstatic => mf.stack.push_cell(class.get_static(sym.member.id as usize)),
                         putfield => {
@@ -113,7 +121,6 @@ impl Refs for OpCode {
                         }
                         _ => {}
                     },
-                    _ => panic!("invalid descriptor {}", sym.desc),
                 }
             }
             _ => {
