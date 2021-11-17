@@ -158,8 +158,8 @@ impl Class {
     pub fn set_instance(&self, obj: &mut Object, i: usize, v: u64) {
         obj.fields[i] = v;
         println!(
-            "set field {} of class {}",
-            self.ins_fields[i].name, self.name
+            "set field {} of class {} obj class = {}",
+            self.ins_fields[i].name, self.name, obj.class.name
         );
         println!("instance vars of class {} = {:?}", self.name, obj.fields);
     }
