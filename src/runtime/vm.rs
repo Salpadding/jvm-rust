@@ -1,5 +1,3 @@
-use std::mem::MaybeUninit;
-
 use crate::heap::{class::Class, class::ClassMember, class::Object, misc::Heap, misc::SymRef};
 use crate::rp::{Rp, Unmanged};
 use crate::runtime::misc::{BytesReader, OpStack};
@@ -109,20 +107,21 @@ impl JThread {
 // TODO: limit stack size
 #[derive(Debug)]
 pub struct JStack {
-    pub frames: [JFrame; MAX_JSTACK_SIZE],
+    pub frames: [Option<JFrame>; MAX_JSTACK_SIZE],
     pub size: usize,
 }
 
 impl JStack {
     fn new() -> Self {
+        const init: Option<JFrame> = None;
         Self {
-            frames: unsafe { MaybeUninit::uninit().assume_init() },
+            frames: [init; MAX_JSTACK_SIZE],
             size: 0,
         }
     }
 
     pub fn push_frame(&mut self, frame: JFrame) {
-        self.frames[self.size] = frame;
+        self.frames[self.size] = Some(frame);
         self.size += 1;
     }
 
@@ -131,11 +130,11 @@ impl JStack {
     }
 
     pub fn prev_frame(&self) -> Rp<JFrame> {
-        self.frames[self.size - 2].as_rp()
+        self.frames[self.size - 2].as_ref().unwrap().as_rp()
     }
 
     fn cur_frame(&self) -> Rp<JFrame> {
-        self.frames[self.size - 1].as_rp()
+        self.frames[self.size - 1].as_ref().unwrap().as_rp()
     }
 
     fn is_empty(&self) -> bool {
@@ -145,7 +144,7 @@ impl JStack {
 
 impl Unmanged for JFrame {}
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct JFrame {
     pub local_vars: Vec<u64>,
     pub stack: OpStack,

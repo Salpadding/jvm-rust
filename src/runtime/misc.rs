@@ -56,7 +56,7 @@ impl<'a> BytesReader<'a> {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct OpStack {
     pub slots: Vec<u64>,
     pub size: usize,
