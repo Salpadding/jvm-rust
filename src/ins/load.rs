@@ -44,7 +44,6 @@ macro_rules! xaload {
     }};
 }
 
-
 impl Load for OpCode {
     fn load(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame, w: bool) {
         use crate::op::OpCode::*;
@@ -70,9 +69,9 @@ impl Load for OpCode {
             aload_2 => aload_n!(mf, 2),
             aload_3 => aload_n!(mf, 3),
 
-            iaload | faload | caload => xaload!(mf, u32, push_u32),
+            iaload | faload => xaload!(mf, u32, push_u32),
             daload | laload => xaload!(mf, u64, push_u64),
-            saload => xaload!(mf, u16, push_u16),
+            saload | caload => xaload!(mf, u16, push_u16),
             aaload => xaload!(mf, u64, push_cell),
             baload => xaload!(mf, u8, push_u8),
             _ => panic!("invalid op {:?}", self),

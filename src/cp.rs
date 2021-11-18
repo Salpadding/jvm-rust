@@ -256,6 +256,18 @@ pub enum ConstantInfo {
         // index refers to name and type
         name_type_i: u16,
     },
+    InvokeDynamic {
+        boot_i: u16,
+        name_type_i: u16,
+    },
+    MethodHandle {
+        ref_kind: u8,
+        ref_i: u16,
+    },
+
+    MethodType {
+        desc_i: u16,
+    },
 }
 
 impl ReadFrom for ConstantInfo {
@@ -292,6 +304,17 @@ impl ReadFrom for ConstantInfo {
                 class_i: p.u16(),
                 name_type_i: p.u16(),
             },
+            INVOKE_DYNAMIC => ConstantInfo::InvokeDynamic {
+                boot_i: p.u16(),
+                name_type_i: p.u16(),
+            },
+
+            METHOD_HANDLE => ConstantInfo::MethodHandle {
+                ref_kind: p.u8(),
+                ref_i: p.u16(),
+            },
+
+            METHOD_TYPE => ConstantInfo::MethodType { desc_i: p.u16() },
             _ => panic!("unknown tag {}", tag),
         }
     }

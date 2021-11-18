@@ -218,14 +218,7 @@ impl Heap {
         }
 
         let mut obj = arr!(class, u64, size[0] as usize);
-        let mut desc = String::new();
-
-        for _ in 0..class.dim - 1 {
-            desc.push('[');
-            desc.push_str(&class.element_class.desc)
-        }
-
-        let next = self.loader.load(&desc);
+        let next = self.loader.load(&class.desc[1..]);
 
         for i in 0..size[0] as usize {
             obj.set(i, self.new_multi_dim(next, &size[1..]).ptr() as u64)
@@ -243,7 +236,7 @@ impl Heap {
                 // boolean
                 0 => arr!(c, u8, size),
                 // char
-                1 => arr!(c, u32, size),
+                1 => arr!(c, u16, size),
                 // float
                 2 => arr!(c, u32, size),
                 // double

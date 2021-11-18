@@ -54,6 +54,8 @@ impl ClassLoader {
             let (dim, _, el) = parser.parse_arr();
 
             let mut c = Class::default();
+            c.initialized = true;
+            c.super_class = self.load("java/lang/Object");
             c.name = name.to_string();
             c.desc = name.to_string();
             c.dim = dim;

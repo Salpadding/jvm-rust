@@ -255,4 +255,11 @@ mod test {
         let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
         jvm.run_class("test/MultiDimensionalArray").unwrap();
     }
+
+    #[test]
+    fn test_hello_world() {
+        let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
+        // TODO: jni
+        // jvm.run_class("test/HelloWorld").unwrap();
+    }
 }
