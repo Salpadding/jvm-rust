@@ -2,6 +2,7 @@ use crate::attr::AttrInfo;
 use crate::cp::{ClassFile, ConstantPool, MemberInfo};
 use crate::heap::misc::{AccessFlags, SymRef};
 use crate::rp::{Rp, Unmanged};
+use crate::runtime::vm::JThread;
 use core::fmt::Debug;
 use std::ops::Deref;
 
@@ -16,7 +17,7 @@ impl From<ClassFile> for Class {
         r.iface_names = c
             .interfaces_i
             .iter()
-            .map(|x| c.cp.class(*x as usize).to_string())
+            .map(|&x| c.cp.class(x as usize).to_string())
             .collect();
         r.fields = c.fields.iter().map(|x| x.into()).collect();
         r.methods = c.methods.iter().map(|x| x.into()).collect();
@@ -86,6 +87,7 @@ pub struct Class {
     // runtime loaded symbols
     pub sym_refs: Vec<Rp<SymRef>>,
     pub id: usize,
+    pub initialized: bool,
 }
 
 impl Debug for Class {
@@ -136,6 +138,37 @@ impl Class {
         }
 
         Rp::null()
+    }
+
+    // run static block
+    pub fn clinit(&mut self, th: &mut JThread) -> bool {
+        if self.initialized {
+            return false;
+        }
+
+        self.initialized = true;
+
+        let init = self.clinit_method();
+
+        if !init.is_null() {
+            th.revert_pc();
+            let fr = th.new_frame(init);
+            th.stack.push_frame(fr);
+        }
+
+        // init super class
+        if !self.super_class.is_null() {
+            self.super_class.clinit(th);
+        }
+        true
+    }
+
+    fn clinit_method(&self) -> Rp<ClassMember> {
+        self.methods
+            .iter()
+            .find(|&x| x.name == "<clinit>" && x.desc == "()V")
+            .map(|x| x.as_rp())
+            .unwrap_or(Rp::null())
     }
 
     pub fn lookup_method(&self, name: &str, desc: &str) -> Rp<ClassMember> {
@@ -207,23 +240,10 @@ impl Class {
 
     pub fn set_static(&mut self, i: usize, v: u64) {
         self.static_vars[i] = v;
-        println!(
-            "set field {} of class {}",
-            self.static_fields[i].name, self.name
-        );
-        println!(
-            "static vars of class {} = {:?}",
-            self.name, self.static_vars
-        );
     }
 
     pub fn set_instance(&self, obj: &mut Object, i: usize, v: u64) {
         obj.data[i] = v;
-        println!(
-            "set field {} of class {} obj class = {}",
-            self.ins_fields[i].name, self.name, obj.class.name
-        );
-        println!("instance vars of class {} = {:?}", self.name, obj.data);
     }
 
     pub fn get_static(&self, i: usize) -> u64 {

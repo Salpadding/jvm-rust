@@ -5,13 +5,17 @@ public class MyObject {
     public int instanceVar;
     public int instanceVar1;
 
+    static {
+        for(int i = 1; i <= 100; i++) {
+            staticVar += i;
+        }
+    }
+
     public MyObject() {
-        this.instanceVar = 1111;
-        this.instanceVar1 = 1111 * 45;
     }
 
     public static void main(String[] args) {
-        int u = 32768;
+        System.out.println(staticVar);
         MyObject myObj = new MyObject();
         myObj.staticVar = 1;
         int x = myObj.staticVar;
@@ -24,7 +28,8 @@ public class MyObject {
         Object d = (Object) myObj;
         MyObject e = (MyObject) d;
 
-        long f = add(u, 3000000000L);
+        long f = add(staticVar, 3000000000L);
+        System.out.println(f);
     }
 
     public static long add(int a, long b) {

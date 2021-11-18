@@ -14,6 +14,9 @@ impl Refs for OpCode {
 
                 let ptr = {
                     let sym = { mf.class_ref(i) };
+                    if sym.class.get_mut().clinit(th) {
+                        return;
+                    }
                     let ptr = mf.new_obj(sym.class);
                     ptr
                 };
@@ -36,12 +39,14 @@ impl Refs for OpCode {
                 if m.name == "println" {
                     match m.desc.as_str() {
                         "(I)V" => {
-                            println!("{}", mf.stack.slots.get_i32(mf.stack.size - 1));
-                            mf.stack.pop_u32();
+                            println!("{}", mf.stack.pop_i32());
+                            // pop this pointer
+                            mf.stack.pop_cell();
                         }
                         "(J)V" => {
-                            println!("{}", mf.stack.slots.get_u64(mf.stack.size - 2) as i64);
-                            mf.stack.pop_u64();
+                            println!("{}", mf.stack.pop_i64());
+                            // pop this pointer
+                            mf.stack.pop_cell();
                         }
                         _ => {}
                     }
@@ -100,6 +105,12 @@ impl Refs for OpCode {
             putstatic | getstatic | putfield | getfield => {
                 let i = rd.u16() as usize;
                 let sym = mf.field_ref(i);
+
+                if self == putstatic || self == getstatic {
+                    if sym.class.get_mut().clinit(th) {
+                        return;
+                    }
+                }
 
                 let mut class = sym.class;
 

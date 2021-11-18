@@ -49,7 +49,11 @@ pub struct JThread {
 
 impl JThread {
     pub fn branch(&mut self, off: i32) {
-        self.next_pc = Some(off);
+        self.next_pc = Some(self.pc + off);
+    }
+
+    pub fn revert_pc(&mut self) {
+        self.next_pc = Some(self.pc);
     }
 }
 
@@ -71,10 +75,32 @@ impl JThread {
         self.stack.cur_frame()
     }
 
+    fn print_stack(&self, sep: char) {
+        for i in 0..32 {
+            print!("{}", sep);
+        }
+        print!("{}", '\n');
+        println!("thread pc = {}, next_pc = {:?}", self.pc, self.next_pc);
+
+        for i in 0..self.stack.size {
+            println!(
+                "frame at {} method = {} next pc = {}",
+                i,
+                self.stack.frames[i].as_ref().unwrap().method.name,
+                self.stack.frames[i].as_ref().unwrap().next_pc,
+            );
+        }
+    }
+
     pub fn run(&mut self) {
         use crate::ins::Ins;
         while !self.stack.is_empty() {
+            // self.print_stack('=');
             let f = self.cur_frame();
+            if f.method.access_flags.is_native() {
+                self.stack.pop_frame();
+                continue;
+            }
             self.pc = f.next_pc;
 
             let method = f.method;
@@ -97,9 +123,10 @@ impl JThread {
             f.get_mut().next_pc = rd.pc;
 
             match self.next_pc {
-                Some(off) => f.get_mut().next_pc = self.pc + off,
+                Some(pc) => f.get_mut().next_pc = pc,
                 _ => {}
             };
+            // self.print_stack('*');
         }
     }
 }
@@ -189,8 +216,8 @@ impl JFrame {
     }
 
     pub fn pass_args(&mut self, other: &mut JFrame, arg_cells: usize) {
-        other.local_vars[..arg_cells]
-            .copy_from_slice(&self.stack.slots[self.stack.size - arg_cells..self.stack.size]);
+        let stack_data = &self.stack.slots[self.stack.size - arg_cells..self.stack.size];
+        other.local_vars[..arg_cells].copy_from_slice(stack_data);
         self.stack.size -= arg_cells;
     }
 }
