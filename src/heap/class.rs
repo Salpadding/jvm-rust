@@ -20,8 +20,8 @@ impl From<ClassFile> for Class {
             .iter()
             .map(|&x| c.cp.class(x as usize).to_string())
             .collect();
-        r.fields = c.fields.iter().map(|x| x.into()).collect();
-        r.methods = c.methods.iter().map(|x| x.into()).collect();
+        r.fields = c.fields.iter_mut().map(|x| x.into()).collect();
+        r.methods = c.methods.iter_mut().map(|x| x.into()).collect();
         r.sym_refs = vec![Rp::null(); c.cp.infos.len()];
 
         core::mem::swap(&mut c.cp, &mut r.cp);
@@ -29,21 +29,21 @@ impl From<ClassFile> for Class {
     }
 }
 
-impl From<&MemberInfo> for ClassMember {
-    fn from(m: &MemberInfo) -> Self {
+impl From<&mut MemberInfo> for ClassMember {
+    fn from(m: &mut MemberInfo) -> Self {
         let mut r = ClassMember::default();
         r.name = m.name.to_string();
         r.access_flags = AccessFlags(m.access_flags);
         r.desc = m.desc.to_string();
 
-        for attr in m.attrs.iter() {
+        for attr in m.attrs.iter_mut() {
             match attr {
-                &AttrInfo::Code(ref c) => {
-                    r.code = c.code.to_vec();
+                &mut AttrInfo::Code(ref mut c) => {
+                    std::mem::swap(&mut r.code, &mut c.code);
                     r.max_stack = c.max_stack as usize;
                     r.max_locals = c.max_locals as usize;
                 }
-                &AttrInfo::ConstantValue(i) => {
+                &mut AttrInfo::ConstantValue(i) => {
                     r.cons_i = i as usize;
                 }
                 _ => {}
