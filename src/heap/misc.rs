@@ -58,18 +58,20 @@ mod flags {
     pub const ACC_ENUM: u16 = 0x4000; // class field
 }
 
+pub const PRIMITIVES_N_OFFSET: usize = 0;
+pub const PRIMITIVES_N: usize = 8usize;
 #[derive(Debug)]
 pub struct Heap {
     pub loader: ClassLoader,
     // primitive types
-    pub i: Rp<Class>,
-    pub c: Rp<Class>,
     pub z: Rp<Class>,
-    pub j: Rp<Class>,
-    pub b: Rp<Class>,
-    pub d: Rp<Class>,
-    pub s: Rp<Class>,
+    pub c: Rp<Class>,
     pub f: Rp<Class>,
+    pub d: Rp<Class>,
+    pub b: Rp<Class>,
+    pub s: Rp<Class>,
+    pub i: Rp<Class>,
+    pub j: Rp<Class>,
 }
 
 impl Unmanaged for Heap {}
@@ -99,17 +101,38 @@ macro_rules! xx_ref {
 }
 
 macro_rules! asf {
-    ($h: ident, $f: ident, $v: expr) => {{
+    ($h: ident, $f: ident, $n: expr, $d: expr) => {{
         let mut c = Class::default();
-        c.name = $v.to_string();
-        let p = $h.loader.insert($v, c);
+        c.name = $n.to_string();
+        c.desc = $d.to_string();
+        let p = $h.loader.insert(c);
         $h.$f = p;
+    }};
+}
+
+macro_rules! arm {
+    ($x: expr, $sz: expr, $t: ty) => {
+        $x => Rp::new(Object {
+                class,
+                data: Rp::<$t>::new_vec($sz).ptr(),
+        })
+    };
+}
+
+macro_rules! arr {
+    ($c: expr, $t: ty, $sz: expr) => {{
+        let o = Object {
+            class: $c,
+            data: Rp::<$t>::new_vec($sz).ptr(),
+            size: $sz,
+        };
+        Rp::new(o)
     }};
 }
 
 impl Heap {
     pub fn new(cp: &str) -> Result<Self, StringErr> {
-        let mut l = ClassLoader::new(cp)?;
+        let l = ClassLoader::new(cp)?;
         // int long char short boolean byte double float
 
         let mut h = Heap {
@@ -123,15 +146,23 @@ impl Heap {
             s: Rp::null(),
             f: Rp::null(),
         };
-        asf!(h, i, "I");
-        asf!(h, c, "C");
-        asf!(h, z, "Z");
-        asf!(h, j, "J");
-        asf!(h, b, "B");
-        asf!(h, d, "D");
-        asf!(h, s, "S");
-        asf!(h, f, "F");
-        asf!(h, f, "[");
+        // id 0-7 is primitive types
+        asf!(h, z, "boolean", "Z");
+        asf!(h, c, "char", "C");
+        asf!(h, f, "float", "F");
+        asf!(h, d, "double", "D");
+        asf!(h, b, "byte", "B");
+        asf!(h, s, "short", "S");
+        asf!(h, i, "int", "I");
+        asf!(h, j, "long", "J");
+
+        // id 8~ is primitive array types
+        for i in 0..PRIMITIVES_N {
+            let mut c = Class::default();
+            c.desc = format!("[{}", h.loader.get(i).desc);
+            c.name = c.desc.to_string();
+            h.loader.insert(c);
+        }
         Ok(h)
     }
 
@@ -171,10 +202,55 @@ impl Heap {
         let v: Rp<u64> = Rp::new_vec(class.ins_fields.len());
         let obj = Object {
             class: class,
+            size: class.ins_fields.len(),
             data: v.ptr(),
         };
 
         Rp::new(obj)
+    }
+
+    pub fn array_class(&mut self, element_class: Rp<Class>) -> Rp<Class> {
+        let name = format!("[L{};", element_class.name);
+        match self.loader.loaded.get(&name) {
+            Some(r) => return *r,
+            _ => {}
+        }
+        let mut c = Class::default();
+        c.name = name;
+        self.loader.insert(c)
+    }
+
+    pub fn new_array(&mut self, element_id: usize, size: usize) -> Rp<Object> {
+        if element_id < PRIMITIVES_N + PRIMITIVES_N_OFFSET && element_id >= PRIMITIVES_N_OFFSET {
+            let c = self
+                .loader
+                .get(element_id + PRIMITIVES_N + PRIMITIVES_N_OFFSET);
+
+            return match element_id {
+                // boolean
+                0 => arr!(c, u8, size),
+                // char
+                1 => arr!(c, u32, size),
+                // float
+                2 => arr!(c, u32, size),
+                // double
+                3 => arr!(c, u64, size),
+                // byte
+                4 => arr!(c, u8, size),
+                // short
+                5 => arr!(c, u16, size),
+                // int
+                6 => arr!(c, u32, size),
+                // long
+                7 => arr!(c, u64, size),
+                _ => panic!("new array failed invalid id {}", element_id),
+            };
+        }
+
+        let element_class = self.loader.get(element_id);
+        let a_class = self.array_class(element_class);
+
+        return arr!(a_class, u64, size);
     }
 }
 
@@ -187,140 +263,9 @@ pub struct SymRef {
     pub member: Rp<ClassMember>,
 }
 
-pub struct DescriptorParser<'a> {
-    bytes: &'a [u8],
-    off: usize,
-}
-
-#[derive(Debug, Default)]
-pub struct MethodDescriptor {
-    pub params: Vec<String>,
-    pub jtypes: Vec<JType>,
-    pub ret: String,
-    pub arg_cells: usize,
-}
-
-#[derive(Debug)]
-pub enum JType {
-    IF,
-    DJ,
-    A,
-}
-
-pub trait JTypeDescriptor {
-    fn jtype(&self) -> JType;
-}
-
-impl JTypeDescriptor for str {
-    fn jtype(&self) -> JType {
-        match self.as_bytes()[0] {
-            b'Z' | b'B' | b'C' | b'S' | b'I' | b'F' => JType::IF,
-            b'D' | b'J' => JType::DJ,
-            _ => JType::A,
-        }
-    }
-}
-
-impl DescriptorParser<'_> {
-    pub fn new(bytes: &[u8]) -> DescriptorParser {
-        DescriptorParser { bytes, off: 0 }
-    }
-
-    fn u8(&mut self) -> u8 {
-        let u = self.bytes[self.off];
-        self.off += 1;
-        u
-    }
-
-    fn peek(&self) -> u8 {
-        self.bytes[self.off]
-    }
-
-    pub fn parse_method(&mut self) -> MethodDescriptor {
-        if self.peek() != b'(' {
-            panic!("not a method descriptor");
-        }
-
-        self.u8();
-
-        let params = self.parse_params();
-        let jtypes: Vec<JType> = params.iter().map(|x| x.jtype()).collect();
-        self.u8();
-
-        let ret = self.parse_param();
-
-        let mut r = MethodDescriptor {
-            params,
-            ret,
-            jtypes,
-            arg_cells: 0,
-        };
-
-        for t in r.jtypes.iter() {
-            match t {
-                JType::A | JType::IF => r.arg_cells += 1,
-                _ => r.arg_cells += 2,
-            }
-        }
-
-        r
-    }
-
-    fn parse_params(&mut self) -> Vec<String> {
-        let mut v: Vec<String> = Vec::new();
-        while self.peek() != b')' {
-            v.push(self.parse_param());
-        }
-        v
-    }
-
-    fn parse_param(&mut self) -> String {
-        if self.peek() == b'[' {
-            return self.parse_arr();
-        }
-        return self.parse_no_array();
-    }
-
-    fn parse_arr(&mut self) -> String {
-        let mut s = String::new();
-
-        while self.peek() == b'[' {
-            s.push(self.u8() as char);
-        }
-
-        s.push_str(&self.parse_no_array());
-        s
-    }
-
-    fn parse_no_array(&mut self) -> String {
-        let cur = self.u8();
-        match cur {
-            b'B' | b'Z' | b'J' | b'I' | b'D' | b'F' | b'S' | b'V' | b'C' => {
-                return unsafe {
-                    String::from_utf8_unchecked(self.bytes[self.off - 1..self.off].to_vec())
-                };
-            }
-            b'L' => {
-                let mut s = String::new();
-
-                while self.peek() != b';' {
-                    s.push(self.u8() as char);
-                }
-
-                self.u8();
-                return s;
-            }
-            _ => panic!("parse no array failed {}", unsafe {
-                String::from_utf8_unchecked(self.bytes.to_vec())
-            }),
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use super::{AccessFlags, MethodDescriptor};
-    use crate::heap::{loader::ClassLoader, misc::DescriptorParser};
+    use crate::heap::{desc::DescriptorParser, loader::ClassLoader};
 
     #[test]
     fn loader_test() {

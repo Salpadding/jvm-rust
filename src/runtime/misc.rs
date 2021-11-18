@@ -62,6 +62,42 @@ pub struct OpStack {
     pub size: usize,
 }
 
+macro_rules! pop_x {
+    ($f: ident, $t: ty) => {
+        #[inline]
+        pub fn $f(&mut self) -> $t {
+            self.pop_u32() as $t
+        }
+    };
+}
+
+macro_rules! pop_xx {
+    ($f: ident, $t: ty) => {
+        #[inline]
+        pub fn $f(&mut self) -> $t {
+            self.pop_u64() as $t
+        }
+    };
+}
+
+macro_rules! push_x {
+    ($f: ident, $t: ty) => {
+        #[inline]
+        pub fn $f(&mut self, v: $t) {
+            self.push_u32(v as u32);
+        }
+    };
+}
+
+macro_rules! push_xx {
+    ($f: ident, $t: ty) => {
+        #[inline]
+        pub fn $f(&mut self, v: $t) {
+            self.push_u64(v as u64)
+        }
+    };
+}
+
 impl OpStack {
     #[inline]
     pub fn push_u32(&mut self, v: u32) {
@@ -69,10 +105,9 @@ impl OpStack {
         self.size += 1;
     }
 
-    #[inline]
-    pub fn push_i32(&mut self, v: i32) {
-        self.push_u32(v as u32);
-    }
+    push_x!(push_u8, u8);
+    push_x!(push_u16, u16);
+    push_x!(push_i32, i32);
 
     #[inline]
     pub fn push_u64(&mut self, v: u64) {
@@ -80,10 +115,7 @@ impl OpStack {
         self.size += 2;
     }
 
-    #[inline]
-    pub fn push_i64(&mut self, v: i64) {
-        self.push_u64(v as u64)
-    }
+    push_xx!(push_i64, i64);
 
     #[inline]
     pub fn push_f32(&mut self, v: f32) {
@@ -102,10 +134,9 @@ impl OpStack {
         r
     }
 
-    #[inline]
-    pub fn pop_i32(&mut self) -> i32 {
-        self.pop_u32() as i32
-    }
+    pop_x!(pop_u8, u8);
+    pop_x!(pop_u16, u16);
+    pop_x!(pop_i32, i32);
 
     #[inline]
     pub fn pop_u64(&mut self) -> u64 {
@@ -114,10 +145,7 @@ impl OpStack {
         r
     }
 
-    #[inline]
-    pub fn pop_i64(&mut self) -> i64 {
-        self.pop_u64() as i64
-    }
+    pop_xx!(pop_i64, i64);
 
     #[inline]
     pub fn pop_f32(&mut self) -> f32 {
@@ -288,5 +316,4 @@ mod test {
         assert_eq!(s.pop_u32(), -100i32 as u32);
         assert_eq!(s.pop_u32(), 100);
     }
-
 }

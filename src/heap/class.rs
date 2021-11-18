@@ -13,6 +13,7 @@ impl From<ClassFile> for Class {
         let mut r = Class::default();
         r.access_flags = AccessFlags(c.access_flags);
         r.name = c.this_class().to_string();
+        r.desc = format!("L{};", r.name);
         r.super_name = c.super_class().to_string();
         r.iface_names = c
             .interfaces_i
@@ -57,6 +58,7 @@ impl Unmanaged for Object {}
 // represents both object and primitive array
 pub struct Object {
     pub class: Rp<Class>,
+    pub size: usize,
     pub data: usize,
 }
 
@@ -80,6 +82,7 @@ impl Object {
 pub struct Class {
     pub access_flags: AccessFlags,
     pub name: String,
+    pub desc: String,
     pub super_name: String,
     pub iface_names: Vec<String>,
     pub cp: ConstantPool,

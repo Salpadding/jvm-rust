@@ -35,6 +35,24 @@ macro_rules! lload_n {
     }};
 }
 
+macro_rules! xaload {
+    ($mf: ident, $t: ty, $psh: ident) => {{
+        let i = $mf.stack.pop_u32() as usize;
+        let obj = $mf.stack.pop_obj();
+        let v: $t = obj.get(i);
+        $mf.stack.$psh(v);
+    }};
+}
+
+macro_rules! xastore {
+    ($mf: ident, $p: ident) => {{
+        let v = $mf.stack.$p();
+        let i = $mf.stack.pop_u32() as usize;
+        let mut obj = $mf.stack.pop_obj();
+        obj.set(i, v);
+    }};
+}
+
 impl Load for OpCode {
     fn load(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame, w: bool) {
         use crate::op::OpCode::*;
@@ -59,6 +77,17 @@ impl Load for OpCode {
             aload_1 => aload_n!(mf, 1),
             aload_2 => aload_n!(mf, 2),
             aload_3 => aload_n!(mf, 3),
+
+            iaload | faload | caload => xaload!(mf, u32, push_u32),
+            daload | laload => xaload!(mf, u64, push_u64),
+            saload => xaload!(mf, u16, push_u16),
+            aaload => xaload!(mf, u64, push_cell),
+            baload => xaload!(mf, u8, push_u8),
+            iastore | fastore | castore => xastore!(mf, pop_u32),
+            dastore | lastore => xastore!(mf, pop_u64),
+            sastore => xastore!(mf, pop_u16),
+            aastore => xastore!(mf, pop_cell),
+            bastore => xastore!(mf, pop_u8),
             _ => panic!("invalid op {:?}", self),
         };
     }

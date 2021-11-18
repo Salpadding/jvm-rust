@@ -26,6 +26,11 @@ im!(u32);
 im!(bool);
 im!(f32);
 im!(f64);
+im!(char);
+im!(u8);
+im!(i8);
+im!(u16);
+im!(i16);
 
 // unsafe raw pointer wrapper, which is also thread unsafe
 // for escape compiler check
@@ -145,22 +150,6 @@ impl<T: Unmanaged> Rp<T> {
         }
     }
 
-    pub fn new_vec(size: usize) -> Self {
-        let b: Box<Vec<T>> = Box::new(Vec::with_capacity(size));
-        let p = (*b).as_ptr() as usize;
-        Box::leak(b);
-        Self {
-            ptr: p,
-            p: PhantomData,
-        }
-    }
-
-    pub fn drop_vec(&mut self) {
-        let b: Box<Vec<T>> = unsafe { Box::from_raw(self.ptr as *mut Vec<T>) };
-        self.ptr = 0;
-        std::mem::drop(b);
-    }
-
     #[inline]
     pub fn get_mut(&self) -> &'static mut T {
         if self.is_null() {
@@ -188,5 +177,23 @@ impl<T: Unmanaged> Rp<T> {
     #[inline]
     pub fn ptr(&self) -> usize {
         self.ptr
+    }
+}
+
+impl<T: Unmanaged + Copy + Default> Rp<T> {
+    pub fn new_vec(size: usize) -> Self {
+        let b: Vec<T> = vec![T::default(); size];
+        let p = (*b).as_ptr() as usize;
+        std::mem::forget(b);
+        Self {
+            ptr: p,
+            p: PhantomData,
+        }
+    }
+
+    pub fn drop_vec(&mut self, size: usize) {
+        let b = unsafe { Vec::from_raw_parts(self.ptr as *mut T, size, size) };
+        self.ptr = 0;
+        std::mem::drop(b);
     }
 }

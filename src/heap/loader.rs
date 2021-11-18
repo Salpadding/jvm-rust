@@ -2,7 +2,7 @@ use crate::cp::ClassFile;
 use crate::entry;
 use crate::entry::Entry;
 use crate::heap::class::Class;
-use crate::heap::misc::DescriptorParser;
+use crate::heap::desc::DescriptorParser;
 use crate::rp::{Rp, Unmanaged};
 use crate::StringErr;
 use std::collections::BTreeMap;
@@ -10,17 +10,17 @@ use std::collections::BTreeMap;
 #[derive(Debug)]
 pub struct ClassLoader {
     entry: Box<dyn Entry>,
-    loaded: BTreeMap<String, Rp<Class>>,
+    pub loaded: BTreeMap<String, Rp<Class>>,
     classes: Vec<Rp<Class>>,
 }
 
 impl ClassLoader {
-    pub fn insert(&mut self, name: &str, class: Class) -> Rp<Class> {
+    pub fn insert(&mut self, class: Class) -> Rp<Class> {
         let class_id = self.classes.len();
         self.classes.push(Rp::new(class));
-        let mut p = self.classes[class_id];
+        let p = self.classes[class_id];
         p.get_mut().id = class_id;
-        self.loaded.insert(name.to_string(), p);
+        self.loaded.insert(p.name.to_string(), p);
         p
     }
 

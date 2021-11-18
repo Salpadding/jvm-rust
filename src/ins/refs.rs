@@ -1,7 +1,6 @@
-use crate::heap::misc::JTypeDescriptor;
+use crate::heap::desc::{JType, JTypeDescriptor};
 use crate::ins::Refs;
 use crate::op::OpCode;
-use crate::runtime::misc::Slots;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
 
 impl Refs for OpCode {
@@ -22,6 +21,27 @@ impl Refs for OpCode {
                 };
 
                 mf.stack.push_obj(ptr);
+            }
+            newarray | anewarray => {
+                let atype = rd.u16() as usize;
+                let n = mf.stack.pop_i32() as i32;
+
+                if n < 0 {
+                    panic!("java.lang.NegativeArraySize");
+                }
+
+                let id = if self == newarray {
+                    atype - 4
+                } else {
+                    mf.class_ref(atype).class.id
+                };
+
+                let arr = mf.heap.new_array(id, n as usize);
+                mf.stack.push_obj(arr);
+            }
+            arraylength => {
+                let obj = mf.stack.pop_obj();
+                mf.stack.push_u32(obj.size as u32);
             }
             invokestatic | invokespecial | invokevirtual | invokeinterface => {
                 let sym = if self == invokeinterface {
@@ -115,7 +135,7 @@ impl Refs for OpCode {
                 let mut class = sym.class;
 
                 match sym.desc.jtype() {
-                    crate::heap::misc::JType::IF => {
+                    JType::IF => {
                         match self {
                             putstatic => class.set_static(sym.member.id, mf.stack.pop_u32() as u64),
                             getstatic => mf.stack.push_u32(class.get_static(sym.member.id) as u32),
@@ -132,7 +152,7 @@ impl Refs for OpCode {
                             _ => {}
                         };
                     }
-                    crate::heap::misc::JType::DJ => {
+                    JType::DJ => {
                         match self {
                             putstatic => class.set_static(sym.member.id, mf.stack.pop_u64() as u64),
                             getstatic => mf.stack.push_u64(class.get_static(sym.member.id)),
@@ -149,7 +169,7 @@ impl Refs for OpCode {
                             _ => {}
                         };
                     }
-                    crate::heap::misc::JType::A => match self {
+                    JType::A => match self {
                         putstatic => class.set_static(sym.member.id, mf.stack.pop_cell()),
                         getstatic => mf.stack.push_cell(class.get_static(sym.member.id)),
                         putfield => {
