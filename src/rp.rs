@@ -17,7 +17,7 @@ macro_rules! im {
         impl Unmanaged for $x {
             #[inline]
             fn as_rp(&self) -> Rp<Self> {
-                Rp::null()
+                Rp::from_ref(&self)
             }
         }
     };
