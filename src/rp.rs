@@ -14,12 +14,7 @@ pub trait Unmanaged: Sized {
 
 macro_rules! im {
     ($x: ident) => {
-        impl Unmanaged for $x {
-            #[inline]
-            fn as_rp(&self) -> Rp<Self> {
-                Rp::from_ref(&self)
-            }
-        }
+        impl Unmanaged for $x {}
     };
 }
 
