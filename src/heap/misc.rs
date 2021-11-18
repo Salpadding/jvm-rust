@@ -1,6 +1,6 @@
 use crate::heap::class::{Class, Object};
 use crate::heap::loader::ClassLoader;
-use crate::rp::{Rp, Unmanged};
+use crate::rp::{Rp, Unmanaged};
 use crate::StringErr;
 
 use super::class::ClassMember;
@@ -61,9 +61,18 @@ mod flags {
 #[derive(Debug)]
 pub struct Heap {
     pub loader: ClassLoader,
+    // primitive types
+    pub i: Rp<Class>,
+    pub c: Rp<Class>,
+    pub z: Rp<Class>,
+    pub j: Rp<Class>,
+    pub b: Rp<Class>,
+    pub d: Rp<Class>,
+    pub s: Rp<Class>,
+    pub f: Rp<Class>,
 }
 
-impl Unmanged for Heap {}
+impl Unmanaged for Heap {}
 
 macro_rules! xx_ref {
     ($s: ident, $c: ident, $i: ident, $f1: ident, $f2: ident) => {{
@@ -89,10 +98,41 @@ macro_rules! xx_ref {
     }};
 }
 
+macro_rules! asf {
+    ($h: ident, $f: ident, $v: expr) => {{
+        let mut c = Class::default();
+        c.name = $v.to_string();
+        let p = $h.loader.insert($v, c);
+        $h.$f = p;
+    }};
+}
+
 impl Heap {
     pub fn new(cp: &str) -> Result<Self, StringErr> {
-        let loader = ClassLoader::new(cp)?;
-        Ok(Heap { loader })
+        let mut l = ClassLoader::new(cp)?;
+        // int long char short boolean byte double float
+
+        let mut h = Heap {
+            loader: l,
+            i: Rp::null(),
+            c: Rp::null(),
+            z: Rp::null(),
+            j: Rp::null(),
+            b: Rp::null(),
+            d: Rp::null(),
+            s: Rp::null(),
+            f: Rp::null(),
+        };
+        asf!(h, i, "I");
+        asf!(h, c, "C");
+        asf!(h, z, "Z");
+        asf!(h, j, "J");
+        asf!(h, b, "B");
+        asf!(h, d, "D");
+        asf!(h, s, "S");
+        asf!(h, f, "F");
+        asf!(h, f, "[");
+        Ok(h)
     }
 
     pub fn class_ref(&mut self, cur: &mut Class, i: usize) -> Rp<SymRef> {
@@ -128,16 +168,17 @@ impl Heap {
     }
 
     pub fn new_obj(&self, class: Rp<Class>) -> Rp<Object> {
+        let v: Rp<u64> = Rp::new_vec(class.ins_fields.len());
         let obj = Object {
             class: class,
-            data: vec![0u64; class.ins_fields.len()],
+            data: v.ptr(),
         };
 
         Rp::new(obj)
     }
 }
 
-impl Unmanged for SymRef {}
+impl Unmanaged for SymRef {}
 #[derive(Debug, Clone)]
 pub struct SymRef {
     pub class: Rp<Class>,

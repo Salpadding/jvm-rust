@@ -1,5 +1,5 @@
 use crate::heap::{class::Class, class::ClassMember, class::Object, misc::Heap, misc::SymRef};
-use crate::rp::{Rp, Unmanged};
+use crate::rp::{Rp, Unmanaged};
 use crate::runtime::misc::{BytesReader, OpStack};
 use crate::StringErr;
 const MAX_JSTACK_SIZE: usize = 1024;
@@ -169,7 +169,7 @@ impl JStack {
     }
 }
 
-impl Unmanged for JFrame {}
+impl Unmanaged for JFrame {}
 
 #[derive(Debug, Default, Clone)]
 pub struct JFrame {

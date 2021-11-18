@@ -3,7 +3,7 @@ use crate::entry;
 use crate::entry::Entry;
 use crate::heap::class::Class;
 use crate::heap::misc::DescriptorParser;
-use crate::rp::{Rp, Unmanged};
+use crate::rp::{Rp, Unmanaged};
 use crate::StringErr;
 use std::collections::BTreeMap;
 
@@ -15,6 +15,15 @@ pub struct ClassLoader {
 }
 
 impl ClassLoader {
+    pub fn insert(&mut self, name: &str, class: Class) -> Rp<Class> {
+        let class_id = self.classes.len();
+        self.classes.push(Rp::new(class));
+        let mut p = self.classes[class_id];
+        p.get_mut().id = class_id;
+        self.loaded.insert(name.to_string(), p);
+        p
+    }
+
     pub fn new(cp: &str) -> Result<Self, StringErr> {
         let entry = entry::new_entry(cp)?;
 

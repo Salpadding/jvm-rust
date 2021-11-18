@@ -1,12 +1,12 @@
 use crate::attr::AttrInfo;
 use crate::cp::{ClassFile, ConstantPool, MemberInfo};
 use crate::heap::misc::{AccessFlags, SymRef};
-use crate::rp::{Rp, Unmanged};
+use crate::rp::{Rp, Unmanaged};
 use crate::runtime::vm::JThread;
 use core::fmt::Debug;
 use std::ops::Deref;
 
-impl Unmanged for Class {}
+impl Unmanaged for Class {}
 
 impl From<ClassFile> for Class {
     fn from(mut c: ClassFile) -> Self {
@@ -52,17 +52,27 @@ impl From<&MemberInfo> for ClassMember {
     }
 }
 
-impl Unmanged for Object {}
+impl Unmanaged for Object {}
 
 // represents both object and primitive array
 pub struct Object {
     pub class: Rp<Class>,
-    pub data: Vec<u64>,
+    pub data: usize,
 }
 
 impl Object {
     pub fn instance_of(&self, c: &Class) -> bool {
         c.is_assignable(&self.class)
+    }
+
+    pub fn set<T: Unmanaged>(&mut self, i: usize, val: T) {
+        let mut rp: Rp<T> = Rp::from_ptr(self.data);
+        rp[i] = val;
+    }
+
+    pub fn get<T: Unmanaged + Copy>(&self, i: usize) -> T {
+        let rp: Rp<T> = Rp::from_ptr(self.data);
+        rp[i]
     }
 }
 
@@ -88,6 +98,7 @@ pub struct Class {
     pub sym_refs: Vec<Rp<SymRef>>,
     pub id: usize,
     pub initialized: bool,
+    pub primitive: bool,
 }
 
 impl Debug for Class {
@@ -243,7 +254,7 @@ impl Class {
     }
 
     pub fn set_instance(&self, obj: &mut Object, i: usize, v: u64) {
-        obj.data[i] = v;
+        obj.set(i, v);
     }
 
     pub fn get_static(&self, i: usize) -> u64 {
@@ -251,7 +262,7 @@ impl Class {
     }
 
     pub fn get_instance(&self, obj: &Object, i: usize) -> u64 {
-        obj.data[i]
+        obj.get(i)
     }
 
     pub fn is_assignable(&self, from: &Class) -> bool {
@@ -328,7 +339,7 @@ impl Class {
     }
 }
 
-impl Unmanged for ClassMember {}
+impl Unmanaged for ClassMember {}
 #[derive(Default)]
 pub struct ClassMember {
     pub access_flags: AccessFlags,
