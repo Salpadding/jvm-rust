@@ -35,6 +35,15 @@ macro_rules! astore_n {
     }};
 }
 
+macro_rules! xastore {
+    ($mf: ident, $p: ident) => {{
+        let v = $mf.stack.$p();
+        let i = $mf.stack.pop_u32() as usize;
+        let mut obj = $mf.stack.pop_obj();
+        obj.set(i, v);
+    }};
+}
+
 impl Store for OpCode {
     fn store(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame, w: bool) {
         use crate::op::OpCode::*;
@@ -55,6 +64,11 @@ impl Store for OpCode {
             astore_1 => astore_n!(mf, 1),
             astore_2 => astore_n!(mf, 2),
             astore_3 => astore_n!(mf, 3),
+            iastore | fastore | castore => xastore!(mf, pop_u32),
+            dastore | lastore => xastore!(mf, pop_u64),
+            sastore => xastore!(mf, pop_u16),
+            aastore => xastore!(mf, pop_cell),
+            bastore => xastore!(mf, pop_u8),
             _ => panic!("invalid op {:?}", self),
         };
     }

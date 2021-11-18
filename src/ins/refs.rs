@@ -22,6 +22,14 @@ impl Refs for OpCode {
 
                 mf.stack.push_obj(ptr);
             }
+            multianewarray => {
+                let a_class = mf.class_ref(rd.u16() as usize);
+                let dim = rd.u8() as usize;
+                let counts = &mf.stack.slots[mf.stack.size - dim..mf.stack.size];
+                mf.stack.size -= dim;
+                let arr = mf.heap.new_multi_dim(a_class.class, counts);
+                mf.stack.push_obj(arr)
+            }
             newarray | anewarray => {
                 let atype = rd.u16() as usize;
                 let n = mf.stack.pop_i32() as i32;

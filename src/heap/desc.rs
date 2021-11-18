@@ -87,23 +87,27 @@ impl DescriptorParser<'_> {
 
     fn parse_param(&mut self) -> String {
         if self.peek() == b'[' {
-            return self.parse_arr();
+            return self.parse_arr().1;
         }
         return self.parse_no_array();
     }
 
-    fn parse_arr(&mut self) -> String {
+    // dim, full descriptor, element descriptor
+    pub fn parse_arr(&mut self) -> (usize, String, String) {
+        let mut dims: usize = 0;
         let mut s = String::new();
 
         while self.peek() == b'[' {
             s.push(self.u8() as char);
+            dims += 1;
         }
 
-        s.push_str(&self.parse_no_array());
-        s
+        let element = self.parse_no_array();
+        s.push_str(&element);
+        (dims, s, element)
     }
 
-    fn parse_no_array(&mut self) -> String {
+    pub fn parse_no_array(&mut self) -> String {
         let cur = self.u8();
         match cur {
             b'B' | b'Z' | b'J' | b'I' | b'D' | b'F' | b'S' | b'V' | b'C' => {

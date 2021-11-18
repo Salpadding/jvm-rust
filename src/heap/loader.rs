@@ -15,12 +15,16 @@ pub struct ClassLoader {
 }
 
 impl ClassLoader {
-    pub fn insert(&mut self, class: Class) -> Rp<Class> {
+    pub fn insert(&mut self, class: Class, alias: &str) -> Rp<Class> {
         let class_id = self.classes.len();
         self.classes.push(Rp::new(class));
         let p = self.classes[class_id];
         p.get_mut().id = class_id;
         self.loaded.insert(p.name.to_string(), p);
+
+        if !alias.is_empty() {
+            self.loaded.insert(alias.to_string(), p);
+        }
         p
     }
 
@@ -43,6 +47,20 @@ impl ClassLoader {
             Some(cl) => return *cl,
             _ => {}
         };
+
+        // array type
+        if name.starts_with("[") {
+            let mut parser = DescriptorParser::new(name.as_bytes());
+            let (dim, _, el) = parser.parse_arr();
+
+            let mut c = Class::default();
+            c.name = name.to_string();
+            c.desc = name.to_string();
+            c.dim = dim;
+            c.element_class = self.load(&el);
+
+            return self.insert(c, "");
+        }
 
         let bytes = self.entry.read_class(name).unwrap();
         self.define(name, bytes)

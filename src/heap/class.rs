@@ -102,6 +102,11 @@ pub struct Class {
     pub id: usize,
     pub initialized: bool,
     pub primitive: bool,
+
+    // for array type, this is class of element
+    pub element_class: Rp<Class>,
+    // dimension of array
+    pub dim: usize,
 }
 
 impl Debug for Class {

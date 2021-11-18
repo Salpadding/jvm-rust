@@ -105,7 +105,8 @@ macro_rules! asf {
         let mut c = Class::default();
         c.name = $n.to_string();
         c.desc = $d.to_string();
-        let p = $h.loader.insert(c);
+        c.primitive = true;
+        let p = $h.loader.insert(c, $d);
         $h.$f = p;
     }};
 }
@@ -158,10 +159,8 @@ impl Heap {
 
         // id 8~ is primitive array types
         for i in 0..PRIMITIVES_N {
-            let mut c = Class::default();
-            c.desc = format!("[{}", h.loader.get(i).desc);
-            c.name = c.desc.to_string();
-            h.loader.insert(c);
+            let n = format!("[{}", h.loader.get(i).desc);
+            h.loader.load(&n);
         }
         Ok(h)
     }
@@ -210,14 +209,28 @@ impl Heap {
     }
 
     pub fn array_class(&mut self, element_class: Rp<Class>) -> Rp<Class> {
-        let name = format!("[L{};", element_class.name);
-        match self.loader.loaded.get(&name) {
-            Some(r) => return *r,
-            _ => {}
+        self.loader.load(&format!("[{}", element_class.desc))
+    }
+
+    pub fn new_multi_dim(&mut self, class: Rp<Class>, size: &[u64]) -> Rp<Object> {
+        if class.dim == 1 {
+            return self.new_array(class.element_class.id, size[0] as usize);
         }
-        let mut c = Class::default();
-        c.name = name;
-        self.loader.insert(c)
+
+        let mut obj = arr!(class, u64, size[0] as usize);
+        let mut desc = String::new();
+
+        for _ in 0..class.dim - 1 {
+            desc.push('[');
+            desc.push_str(&class.element_class.desc)
+        }
+
+        let next = self.loader.load(&desc);
+
+        for i in 0..size[0] as usize {
+            obj.set(i, self.new_multi_dim(next, &size[1..]).ptr() as u64)
+        }
+        obj
     }
 
     pub fn new_array(&mut self, element_id: usize, size: usize) -> Rp<Object> {

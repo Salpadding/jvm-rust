@@ -249,4 +249,10 @@ mod test {
         let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
         jvm.run_class("test/FibonacciTest").unwrap();
     }
+
+    #[test]
+    fn test_array() {
+        let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
+        jvm.run_class("test/MultiDimensionalArray").unwrap();
+    }
 }
