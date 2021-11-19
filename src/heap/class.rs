@@ -6,6 +6,8 @@ use crate::runtime::vm::JThread;
 use core::fmt::Debug;
 use std::ops::Deref;
 
+use super::desc::MethodDescriptor;
+
 impl From<ClassFile> for Class {
     fn from(mut c: ClassFile) -> Self {
         let mut r = Class::default();
@@ -354,7 +356,7 @@ pub struct ClassMember {
     pub cons_i: usize,
     pub id: usize,
     pub class: Rp<Class>,
-    pub arg_cells: usize,
+    pub m_desc: MethodDescriptor,
 }
 
 impl Debug for ClassMember {

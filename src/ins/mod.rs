@@ -4,6 +4,7 @@ mod conv;
 mod ctl;
 mod load;
 mod math;
+mod other;
 mod refs;
 mod stack;
 mod store;
@@ -11,23 +12,23 @@ mod store;
 use crate::op::OpCode;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
 
-pub trait Constant {
+trait Constant {
     fn con(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame);
 }
 
-pub trait Load {
+trait Load {
     fn load(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame, wide: bool);
 }
 
-pub trait Store {
+trait Store {
     fn store(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame, wide: bool);
 }
 
-pub trait Stack {
+trait Stack {
     fn stack(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame);
 }
 
-pub trait Math {
+trait Math {
     fn math(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame, wide: bool);
 }
 
@@ -35,11 +36,11 @@ pub trait Conversion {
     fn conv(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame);
 }
 
-pub trait Compare {
+trait Compare {
     fn cmp(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame);
 }
 
-pub trait Control {
+trait Control {
     fn ctl(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame);
 }
 
@@ -47,13 +48,18 @@ pub trait Ins {
     fn step(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame, wide: bool);
 }
 
-pub trait Refs {
+trait Refs {
     fn refs(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame);
+}
+
+trait Other {
+    fn other(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame);
 }
 
 impl Ins for u8 {
     fn step(self, rd: &mut BytesReader, th: &mut JThread, c: &mut JFrame, wide: bool) {
         let op: OpCode = self.into();
+
         match self {
             0x00..=0x14 => op.con(rd, th, c),
             0x15..=0x35 => op.load(rd, th, c, wide),
@@ -68,6 +74,8 @@ impl Ins for u8 {
             0xb2..=0xc3 | 0xc5 => {
                 op.refs(rd, th, c);
             }
+            0xca..=0xff => op.other(rd, th, c),
+
             _ => panic!("invalid op {}", self),
         }
     }

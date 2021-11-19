@@ -1,3 +1,4 @@
+use crate::heap::natives::{NativeMethod, NativeRegistry};
 use crate::heap::{class::Class, class::ClassMember, class::Object, misc::Heap, misc::SymRef};
 use crate::rp::Rp;
 use crate::runtime::misc::{BytesReader, OpStack};
@@ -5,7 +6,6 @@ use crate::StringErr;
 const MAX_JSTACK_SIZE: usize = 1024;
 
 // jvm runtime representation
-#[derive(Debug)]
 pub struct Jvm {
     heap: Rp<Heap>,
     thread: JThread,
@@ -39,12 +39,12 @@ impl Jvm {
     }
 }
 
-#[derive(Debug)]
 pub struct JThread {
     pub pc: i32,
     pub stack: JStack,
     pub next_pc: Option<i32>,
     pub heap: Rp<Heap>,
+    pub registry: NativeRegistry,
 }
 
 impl JThread {
@@ -64,6 +64,7 @@ impl JThread {
             pc: 0,
             stack: JStack::new(),
             next_pc: None,
+            registry: NativeRegistry::default(),
         }
     }
 

@@ -3,9 +3,11 @@ use crate::entry;
 use crate::entry::Entry;
 use crate::heap::class::Class;
 use crate::heap::desc::DescriptorParser;
-use crate::rp::{Rp};
+use crate::rp::Rp;
 use crate::StringErr;
 use std::collections::BTreeMap;
+
+use super::class::ClassMember;
 
 #[derive(Debug)]
 pub struct ClassLoader {
@@ -68,12 +70,31 @@ impl ClassLoader {
         self.define(name, bytes)
     }
 
+    fn inject_native(&self, m: &mut ClassMember) {
+        m.max_locals = m.m_desc.arg_cells;
+
+        match &m.m_desc.ret.as_str()[..1] {
+            // return
+            "V" => m.code = [0xfe, 0xb1].to_vec(),
+            // lreturn
+            "D" | "J" => m.code = [0xfe, 0xad].to_vec(),
+            // areturn
+            "L" | "[" => m.code = [0xfe, 0xb0].to_vec(),
+            // C Z B I F => ireturn
+            _ => m.code = [0xfe, 0xac].to_vec(),
+        }
+    }
+
     fn define(&mut self, name: &str, bytes: Vec<u8>) -> Rp<Class> {
         let file = ClassFile::new(bytes);
         let mut cl: Class = file.into();
         for m in cl.methods.iter_mut() {
             let mut parser = DescriptorParser::new(m.desc.as_bytes());
-            m.arg_cells = parser.parse_method().arg_cells;
+            m.m_desc = parser.parse_method();
+
+            if m.access_flags.is_native() {
+                self.inject_native(m);
+            }
         }
 
         // load super and interfaces
