@@ -4,42 +4,14 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-// the memory safety is guraranteed by programmer, not compiler
-pub trait Unmanaged: Sized {
-    #[inline]
-    fn as_rp(&self) -> Rp<Self> {
-        Rp::from_ref(&self)
-    }
-}
-
-macro_rules! im {
-    ($x: ident) => {
-        impl Unmanaged for $x {}
-    };
-}
-
-// primitives is always unmanaged
-im!(u64);
-im!(i64);
-im!(i32);
-im!(u32);
-im!(bool);
-im!(f32);
-im!(f64);
-im!(char);
-im!(u8);
-im!(i8);
-im!(u16);
-im!(i16);
-
 // unsafe raw pointer wrapper, which is also thread unsafe
 // for escape compiler check
-pub struct Rp<T: Unmanaged> {
+pub struct Rp<T> {
     p: PhantomData<T>,
     ptr: usize,
 }
 
-impl<T: Debug + Unmanaged> Debug for Rp<T> {
+impl<T: Debug> Debug for Rp<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_null() {
             f.write_str("NULL")
@@ -49,7 +21,7 @@ impl<T: Debug + Unmanaged> Debug for Rp<T> {
     }
 }
 
-impl<T: Unmanaged> Clone for Rp<T> {
+impl<T> Clone for Rp<T> {
     fn clone(&self) -> Self {
         Self {
             p: PhantomData,
@@ -58,16 +30,16 @@ impl<T: Unmanaged> Clone for Rp<T> {
     }
 }
 
-impl<T: Unmanaged> Copy for Rp<T> {}
+impl<T> Copy for Rp<T> {}
 
-impl<T: Unmanaged> Default for Rp<T> {
+impl<T> Default for Rp<T> {
     #[inline]
     fn default() -> Self {
         Self::null()
     }
 }
 
-impl<T: Unmanaged> Deref for Rp<T> {
+impl<T> Deref for Rp<T> {
     type Target = T;
 
     #[inline]
@@ -76,21 +48,21 @@ impl<T: Unmanaged> Deref for Rp<T> {
     }
 }
 
-impl<T: Unmanaged> DerefMut for Rp<T> {
+impl<T> DerefMut for Rp<T> {
     #[inline]
     fn deref_mut(&mut self) -> &'static mut T {
         self.get_mut()
     }
 }
 
-impl<T: Unmanaged> AsRef<T> for Rp<T> {
+impl<T> AsRef<T> for Rp<T> {
     #[inline]
     fn as_ref(&self) -> &'static T {
         self.get_mut()
     }
 }
 
-impl<T: Unmanaged> std::ops::Index<usize> for Rp<T> {
+impl<T> std::ops::Index<usize> for Rp<T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -98,15 +70,15 @@ impl<T: Unmanaged> std::ops::Index<usize> for Rp<T> {
     }
 }
 
-impl<T: Unmanaged> std::ops::IndexMut<usize> for Rp<T> {
+impl<T> std::ops::IndexMut<usize> for Rp<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         unsafe { &mut *(self.ptr as *mut T).add(index) }
     }
 }
 
-impl<T: Unmanaged> Rp<T> {
+impl<T> From<&T> for Rp<T> {
     #[inline]
-    pub fn from_ref(x: &T) -> Rp<T> {
+    fn from(x: &T) -> Self {
         {
             Rp {
                 p: PhantomData,
@@ -114,9 +86,11 @@ impl<T: Unmanaged> Rp<T> {
             }
         }
     }
+}
 
+impl<T> From<usize> for Rp<T> {
     #[inline]
-    pub fn from_ptr(p: usize) -> Rp<T> {
+    fn from(p: usize) -> Self {
         if p == 0 {
             return Rp::null();
         }
@@ -125,7 +99,35 @@ impl<T: Unmanaged> Rp<T> {
             ptr: p,
         }
     }
+}
 
+impl<T> From<*const T> for Rp<T> {
+    #[inline]
+    fn from(p: *const T) -> Self {
+        if p.is_null() {
+            return Rp::null();
+        }
+        Rp {
+            p: PhantomData,
+            ptr: p as usize,
+        }
+    }
+}
+
+impl<T> From<*mut T> for Rp<T> {
+    #[inline]
+    fn from(p: *mut T) -> Self {
+        if p.is_null() {
+            return Rp::null();
+        }
+        Rp {
+            p: PhantomData,
+            ptr: p as usize,
+        }
+    }
+}
+
+impl<T> Rp<T> {
     #[inline]
     pub fn is_null(&self) -> bool {
         self.ptr == 0
@@ -180,7 +182,7 @@ impl<T: Unmanaged> Rp<T> {
     }
 }
 
-impl<T: Unmanaged + Copy + Default> Rp<T> {
+impl<T: Copy + Default> Rp<T> {
     pub fn new_vec(size: usize) -> Self {
         let b: Vec<T> = vec![T::default(); size];
         let p = (*b).as_ptr() as usize;

@@ -1,6 +1,6 @@
 use crate::heap::class::{Class, Object};
 use crate::heap::loader::ClassLoader;
-use crate::rp::{Rp, Unmanaged};
+use crate::rp::Rp;
 use crate::StringErr;
 
 use super::class::ClassMember;
@@ -73,8 +73,6 @@ pub struct Heap {
     pub i: Rp<Class>,
     pub j: Rp<Class>,
 }
-
-impl Unmanaged for Heap {}
 
 macro_rules! xx_ref {
     ($s: ident, $c: ident, $i: ident, $f1: ident, $f2: ident) => {{
@@ -260,7 +258,6 @@ impl Heap {
     }
 }
 
-impl Unmanaged for SymRef {}
 #[derive(Debug, Clone)]
 pub struct SymRef {
     pub class: Rp<Class>,

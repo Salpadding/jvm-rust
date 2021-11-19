@@ -3,7 +3,7 @@ use crate::entry;
 use crate::entry::Entry;
 use crate::heap::class::Class;
 use crate::heap::desc::DescriptorParser;
-use crate::rp::{Rp, Unmanaged};
+use crate::rp::{Rp};
 use crate::StringErr;
 use std::collections::BTreeMap;
 

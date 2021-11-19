@@ -1,12 +1,10 @@
 use crate::attr::AttrInfo;
 use crate::cp::{ClassFile, ConstantPool, MemberInfo};
 use crate::heap::misc::{AccessFlags, SymRef};
-use crate::rp::{Rp, Unmanaged};
+use crate::rp::Rp;
 use crate::runtime::vm::JThread;
 use core::fmt::Debug;
 use std::ops::Deref;
-
-impl Unmanaged for Class {}
 
 impl From<ClassFile> for Class {
     fn from(mut c: ClassFile) -> Self {
@@ -53,8 +51,6 @@ impl From<&mut MemberInfo> for ClassMember {
     }
 }
 
-impl Unmanaged for Object {}
-
 // represents both object and primitive array
 pub struct Object {
     pub class: Rp<Class>,
@@ -67,13 +63,13 @@ impl Object {
         c.is_assignable(&self.class)
     }
 
-    pub fn set<T: Unmanaged>(&mut self, i: usize, val: T) {
-        let mut rp: Rp<T> = Rp::from_ptr(self.data);
+    pub fn set<T>(&mut self, i: usize, val: T) {
+        let mut rp: Rp<T> = self.data.into();
         rp[i] = val;
     }
 
-    pub fn get<T: Unmanaged + Copy>(&self, i: usize) -> T {
-        let rp: Rp<T> = Rp::from_ptr(self.data);
+    pub fn get<T: Copy>(&self, i: usize) -> T {
+        let rp: Rp<T> = self.data.into();
         rp[i]
     }
 }
@@ -134,7 +130,7 @@ impl Class {
                 && &m.desc == "([Ljava/lang/String;)V"
                 && m.access_flags.is_static()
             {
-                return m.as_rp();
+                return m.into();
             }
         }
         return Rp::null();
@@ -147,7 +143,7 @@ impl Class {
         loop {
             for m in cur.methods.iter() {
                 if m.name == name && m.desc == desc {
-                    return m.as_rp();
+                    return m.into();
                 }
             }
             if cur.super_class.is_null() {
@@ -186,7 +182,7 @@ impl Class {
         self.methods
             .iter()
             .find(|&x| x.name == "<clinit>" && x.desc == "()V")
-            .map(|x| x.as_rp())
+            .map(|x| x.into())
             .unwrap_or(Rp::null())
     }
 
@@ -219,7 +215,7 @@ impl Class {
         for i in ifaces.iter() {
             for m in i.methods.iter() {
                 if m.name == name && m.desc == desc {
-                    return m.as_rp();
+                    return m.into();
                 }
             }
 
@@ -347,7 +343,6 @@ impl Class {
     }
 }
 
-impl Unmanaged for ClassMember {}
 #[derive(Default)]
 pub struct ClassMember {
     pub access_flags: AccessFlags,
