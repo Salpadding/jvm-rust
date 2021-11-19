@@ -199,7 +199,7 @@ impl Class {
     pub fn lookup_iface_method(&self, name: &str, desc: &str) -> Rp<ClassMember> {
         for m in self.methods.iter() {
             if m.name == name && m.desc == desc {
-                return m.as_rp();
+                return m.into();
             }
         }
 
@@ -233,7 +233,7 @@ impl Class {
         // lookup in this class fields
         for f in self.fields.iter() {
             if f.name == name && f.desc == desc {
-                return f.as_rp();
+                return f.into();
             }
         }
 

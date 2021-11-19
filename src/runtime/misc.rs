@@ -178,7 +178,7 @@ impl OpStack {
 
     #[inline]
     pub fn pop_obj(&mut self) -> Rp<Object> {
-        Rp::from_ptr(self.pop_cell() as usize)
+        (self.pop_cell() as usize).into()
     }
 
     #[inline]
@@ -188,7 +188,7 @@ impl OpStack {
 
     #[inline]
     pub fn back_obj(&self, i: usize) -> Rp<Object> {
-        Rp::from_ptr(self.slots[self.size - i] as usize)
+        (self.slots[self.size - i] as usize).into()
     }
 }
 

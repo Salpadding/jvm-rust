@@ -39,7 +39,7 @@ impl ClassLoader {
     }
 
     pub fn get(&self, i: usize) -> Rp<Class> {
-        self.classes[i].as_rp()
+        self.classes[i].into()
     }
 
     pub fn load(&mut self, name: &str) -> Rp<Class> {
@@ -87,7 +87,7 @@ impl ClassLoader {
             .fields
             .iter_mut()
             .filter(|x| x.access_flags.is_static())
-            .map(|x| x.as_rp())
+            .map(|x| x.into())
             .collect();
 
         // set field index
@@ -112,7 +112,7 @@ impl ClassLoader {
         let mut i = base;
         for f in cl.fields.iter_mut().filter(|x| !x.access_flags.is_static()) {
             f.id = i;
-            cl.ins_fields.push(f.as_rp());
+            cl.ins_fields.push(f.into());
             i += 1;
         }
 

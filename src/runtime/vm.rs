@@ -157,11 +157,11 @@ impl JStack {
     }
 
     pub fn prev_frame(&self) -> Rp<JFrame> {
-        self.frames[self.size - 2].as_ref().unwrap().as_rp()
+        self.frames[self.size - 2].as_ref().unwrap().into()
     }
 
     fn cur_frame(&self) -> Rp<JFrame> {
-        self.frames[self.size - 1].as_ref().unwrap().as_rp()
+        self.frames[self.size - 1].as_ref().unwrap().into()
     }
 
     fn is_empty(&self) -> bool {

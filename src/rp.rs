@@ -88,6 +88,18 @@ impl<T> From<&T> for Rp<T> {
     }
 }
 
+impl<T> From<&mut T> for Rp<T> {
+    #[inline]
+    fn from(x: &mut T) -> Self {
+        {
+            Rp {
+                p: PhantomData,
+                ptr: x as *mut T as usize,
+            }
+        }
+    }
+}
+
 impl<T> From<usize> for Rp<T> {
     #[inline]
     fn from(p: usize) -> Self {
