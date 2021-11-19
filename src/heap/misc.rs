@@ -122,7 +122,7 @@ macro_rules! arr {
     ($c: expr, $t: ty, $sz: expr) => {{
         let o = Object {
             class: $c,
-            data: Rp::<$t>::new_vec($sz).ptr(),
+            data: Rp::<$t>::alloc($sz).ptr(),
             size: $sz,
         };
         Rp::new(o)
@@ -196,7 +196,7 @@ impl Heap {
     }
 
     pub fn new_obj(&self, class: Rp<Class>) -> Rp<Object> {
-        let v: Rp<u64> = Rp::new_vec(class.ins_fields.len());
+        let v: Rp<u64> = Rp::alloc(class.ins_fields.len());
         let obj = Object {
             class: class,
             size: class.ins_fields.len(),

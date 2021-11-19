@@ -62,6 +62,7 @@ impl<T> AsRef<T> for Rp<T> {
     }
 }
 
+// index operation for memory allocated by Rp::alloc
 impl<T> std::ops::Index<usize> for Rp<T> {
     type Output = T;
 
@@ -70,6 +71,7 @@ impl<T> std::ops::Index<usize> for Rp<T> {
     }
 }
 
+// index operation for memory allocated by Rp::alloc
 impl<T> std::ops::IndexMut<usize> for Rp<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         unsafe { &mut *(self.ptr as *mut T).add(index) }
@@ -194,10 +196,11 @@ impl<T> Rp<T> {
     }
 }
 
-impl<T: Copy + Default> Rp<T> {
-    pub fn new_vec(size: usize) -> Self {
-        let b: Vec<T> = vec![T::default(); size];
-        let p = (*b).as_ptr() as usize;
+impl<T: Clone + Default> Rp<T> {
+    // alloc a continous memory to store n struct T
+    pub fn alloc(num: usize) -> Self {
+        let b: Vec<T> = vec![T::default(); num];
+        let p = b.as_ptr() as usize;
         std::mem::forget(b);
         Self {
             ptr: p,
@@ -205,9 +208,43 @@ impl<T: Copy + Default> Rp<T> {
         }
     }
 
-    pub fn drop_vec(&mut self, size: usize) {
-        let b = unsafe { Vec::from_raw_parts(self.ptr as *mut T, size, size) };
+    // free a continous memory
+    pub fn free(&mut self, num: usize) {
+        let b = unsafe { Vec::from_raw_parts(self.ptr as *mut T, num, num) };
         self.ptr = 0;
         std::mem::drop(b);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Rp;
+    use core::convert::AsRef;
+
+    #[derive(Debug, Default, Clone)]
+    pub struct Point {
+        pub x: f64,
+        pub y: f64,
+    }
+
+    fn main() {
+        let size = 10usize;
+        // new an array on heap
+        let mut p: Rp<Point> = Rp::alloc(size);
+
+        init_points(p, size);
+
+        for i in 0..size {
+            println!("{:?}", p[i]);
+        }
+
+        // free the memory, and p becomes null pointer
+        p.free(size);
+    }
+
+    fn init_points(mut p: Rp<Point>, len: usize) {
+        for i in 0..len {
+            p[i] = Point { x: 1.0, y: 1.0 };
+        }
     }
 }
