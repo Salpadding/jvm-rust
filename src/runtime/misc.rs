@@ -241,7 +241,7 @@ pub trait Slots {
     fn set_cell(&mut self, i: usize, v: u64);
 }
 
-impl Slots for Vec<u64> {
+impl Slots for [u64] {
     #[inline]
     fn set_u32(&mut self, i: usize, v: u32) {
         self[i] = v as u64;

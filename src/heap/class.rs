@@ -22,7 +22,7 @@ impl From<ClassFile> for Class {
             .collect();
         r.fields = c.fields.iter_mut().map(|x| x.into()).collect();
         r.methods = c.methods.iter_mut().map(|x| x.into()).collect();
-        r.sym_refs = vec![Rp::null(); c.cp.infos.len()];
+        r.sym_refs = vec![Rp::null(); c.cp.len()];
 
         core::mem::swap(&mut c.cp, &mut r.cp);
         r
@@ -99,12 +99,14 @@ pub struct Class {
     pub sym_refs: Vec<Rp<SymRef>>,
     pub id: usize,
     pub initialized: bool,
-    pub primitive: bool,
 
     // for array type, this is class of element
     pub element_class: Rp<Class>,
     // dimension of array
-    pub dim: usize,
+    pub dim: u8,
+
+    // class object
+    pub j_class: Rp<Object>,
 }
 
 impl Debug for Class {
@@ -168,9 +170,8 @@ impl Class {
         let init = self.clinit_method();
 
         if !init.is_null() {
-            th.revert_pc();
             let fr = th.new_frame(init);
-            th.stack.push_frame(fr);
+            th.push_frame(fr);
         }
 
         // init super class
@@ -342,6 +343,21 @@ impl Class {
                 _ => {}
             }
         }
+    }
+
+    pub fn new_obj_size(class: Rp<Class>, size: usize) -> Rp<Object> {
+        let v: Rp<u64> = Rp::alloc(size);
+        let obj = Object {
+            class: class,
+            size: size,
+            data: v.ptr(),
+        };
+
+        Rp::new(obj)
+    }
+
+    pub fn new_obj(class: Rp<Class>) -> Rp<Object> {
+        Self::new_obj_size(class, class.ins_fields.len())
     }
 }
 

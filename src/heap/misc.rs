@@ -1,3 +1,6 @@
+use std::hash::Hash;
+use std::rc::Rc;
+
 use crate::heap::class::{Class, Object};
 use crate::heap::loader::ClassLoader;
 use crate::rp::Rp;
@@ -37,7 +40,7 @@ impl AccessFlags {
     is_xx!(is_enum, flags::ACC_ENUM);
 }
 
-mod flags {
+pub mod flags {
     pub const ACC_PUBLIC: u16 = 0x0001; // class field method
     pub const ACC_PRIVATE: u16 = 0x0002; //       field method
     pub const ACC_PROTECTED: u16 = 0x0004; //       field method
@@ -58,20 +61,31 @@ mod flags {
     pub const ACC_ENUM: u16 = 0x4000; // class field
 }
 
-pub const PRIMITIVES_N_OFFSET: usize = 0;
-pub const PRIMITIVES_N: usize = 8usize;
+pub const PRIMITIVE_N: usize = 8;
+
+pub mod primitives {
+    pub const Z: usize = 0;
+    pub const C: usize = 1;
+    pub const F: usize = 2;
+    pub const D: usize = 3;
+    pub const B: usize = 4;
+    pub const S: usize = 5;
+    pub const I: usize = 6;
+    pub const J: usize = 7;
+}
+
+pub static PRIMITIVES: [&str; 8] = [
+    "boolean", "char", "float", "double", "byte", "short", "int", "long",
+];
+
+pub static PRIMITIVE_DESC: [&str; 8] = ["Z", "C", "F", "D", "B", "S", "I", "L"];
+
 #[derive(Debug)]
 pub struct Heap {
     pub loader: ClassLoader,
-    // primitive types
-    pub z: Rp<Class>,
-    pub c: Rp<Class>,
-    pub f: Rp<Class>,
-    pub d: Rp<Class>,
-    pub b: Rp<Class>,
-    pub s: Rp<Class>,
-    pub i: Rp<Class>,
-    pub j: Rp<Class>,
+    primitives: Vec<Rp<Class>>,
+    primitive_array: Vec<Rp<Class>>,
+    string: Rp<Class>,
 }
 
 macro_rules! xx_ref {
@@ -95,17 +109,6 @@ macro_rules! xx_ref {
 
         *r = Rp::new(sym);
         *r
-    }};
-}
-
-macro_rules! asf {
-    ($h: ident, $f: ident, $n: expr, $d: expr) => {{
-        let mut c = Class::default();
-        c.name = $n.to_string();
-        c.desc = $d.to_string();
-        c.primitive = true;
-        let p = $h.loader.insert(c, $d);
-        $h.$f = p;
     }};
 }
 
@@ -136,31 +139,37 @@ impl Heap {
 
         let mut h = Heap {
             loader: l,
-            i: Rp::null(),
-            c: Rp::null(),
-            z: Rp::null(),
-            j: Rp::null(),
-            b: Rp::null(),
-            d: Rp::null(),
-            s: Rp::null(),
-            f: Rp::null(),
+            primitives: Vec::new(),
+            primitive_array: Vec::new(),
+            string: Rp::null(),
         };
-        // id 0-7 is primitive types
-        asf!(h, z, "boolean", "Z");
-        asf!(h, c, "char", "C");
-        asf!(h, f, "float", "F");
-        asf!(h, d, "double", "D");
-        asf!(h, b, "byte", "B");
-        asf!(h, s, "short", "S");
-        asf!(h, i, "int", "I");
-        asf!(h, j, "long", "J");
 
-        // id 8~ is primitive array types
-        for i in 0..PRIMITIVES_N {
-            let n = format!("[{}", h.loader.get(i).desc);
-            h.loader.load(&n);
+        // cache is primitive types
+        for p in PRIMITIVES.iter() {
+            h.primitives.push(h.loader.load(p));
         }
+
+        for p in PRIMITIVE_DESC.iter() {
+            h.primitive_array.push(h.loader.load(&format!("[{}", p)))
+        }
+
+        h.string = h.loader.load("java/lang/String");
+
         Ok(h)
+    }
+
+    pub fn new_string(&self, s: &str) -> Rp<Object> {
+        let mut o = Class::new_obj(self.string);
+        // set first field
+        let v: Vec<u16> = s.encode_utf16().collect();
+        let char_arrr = self.new_primitive_array(primitives::C as i32, v.len());
+        let mut arr: Rp<u16> = char_arrr.data.into();
+        for i in 0..v.len() {
+            arr[i] = v[i];
+        }
+
+        o.set(0, char_arrr.ptr() as u64);
+        o
     }
 
     pub fn class_ref(&mut self, cur: &mut Class, i: usize) -> Rp<SymRef> {
@@ -195,24 +204,13 @@ impl Heap {
         xx_ref!(self, cur, i, iface_ref, lookup_iface_method)
     }
 
-    pub fn new_obj(&self, class: Rp<Class>) -> Rp<Object> {
-        let v: Rp<u64> = Rp::alloc(class.ins_fields.len());
-        let obj = Object {
-            class: class,
-            size: class.ins_fields.len(),
-            data: v.ptr(),
-        };
-
-        Rp::new(obj)
-    }
-
     pub fn array_class(&mut self, element_class: Rp<Class>) -> Rp<Class> {
         self.loader.load(&format!("[{}", element_class.desc))
     }
 
     pub fn new_multi_dim(&mut self, class: Rp<Class>, size: &[u64]) -> Rp<Object> {
         if class.dim == 1 {
-            return self.new_array(class.element_class.id, size[0] as usize);
+            return self.new_array(class.element_class.name.as_str(), size[0] as usize);
         }
 
         let mut obj = arr!(class, u64, size[0] as usize);
@@ -224,37 +222,41 @@ impl Heap {
         obj
     }
 
-    pub fn new_array(&mut self, element_id: usize, size: usize) -> Rp<Object> {
-        if element_id < PRIMITIVES_N + PRIMITIVES_N_OFFSET && element_id >= PRIMITIVES_N_OFFSET {
-            let c = self
-                .loader
-                .get(element_id + PRIMITIVES_N + PRIMITIVES_N_OFFSET);
+    pub fn new_primitive_array(&self, id: i32, size: usize) -> Rp<Object> {
+        let c = self.primitive_array[id as usize];
+        return match id {
+            // boolean
+            0 => arr!(c, u8, size),
+            // char
+            1 => arr!(c, u16, size),
+            // float
+            2 => arr!(c, u32, size),
+            // double
+            3 => arr!(c, u64, size),
+            // byte
+            4 => arr!(c, u8, size),
+            // short
+            5 => arr!(c, u16, size),
+            // int
+            6 => arr!(c, u32, size),
+            // long
+            7 => arr!(c, u64, size),
+            _ => panic!(),
+        };
+    }
 
-            return match element_id {
-                // boolean
-                0 => arr!(c, u8, size),
-                // char
-                1 => arr!(c, u16, size),
-                // float
-                2 => arr!(c, u32, size),
-                // double
-                3 => arr!(c, u64, size),
-                // byte
-                4 => arr!(c, u8, size),
-                // short
-                5 => arr!(c, u16, size),
-                // int
-                6 => arr!(c, u32, size),
-                // long
-                7 => arr!(c, u64, size),
-                _ => panic!("new array failed invalid id {}", element_id),
-            };
+    pub fn new_array(&mut self, element_class: &str, size: usize) -> Rp<Object> {
+        let o = PRIMITIVES
+            .iter()
+            .position(|x| *x == element_class)
+            .map(|x| x as i32)
+            .unwrap_or(-1);
+        let class = self.loader.load(element_class);
+        let c = self.array_class(class);
+        if o >= 0 {
+            return self.new_primitive_array(o, size);
         }
-
-        let element_class = self.loader.get(element_id);
-        let a_class = self.array_class(element_class);
-
-        return arr!(a_class, u64, size);
+        return arr!(c, u64, size);
     }
 }
 

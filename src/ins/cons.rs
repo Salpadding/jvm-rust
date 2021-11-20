@@ -14,16 +14,25 @@ impl Ldc for OpCode {
             _ => rd.u16() as usize,
         };
 
-        let (c, w) = f.class.cp.cell(i);
+        let c = f.class.cp.constant(i);
 
-        if (self == ldc || self == ldc_w) && !w {
-            f.stack.push_u32(c as u32);
-            return;
-        }
+        match c {
+            crate::cp::Constant::Primitive(c, w) => {
+                if (self == ldc || self == ldc_w) && !w {
+                    f.stack.push_u32(c as u32);
+                    return;
+                }
 
-        if self == ldc2_w && w {
-            f.stack.push_u64(c);
-            return;
+                if self == ldc2_w && w {
+                    f.stack.push_u64(c);
+                    return;
+                }
+            }
+            crate::cp::Constant::ClassRef(i) => {
+                let sym = f.class_ref(i as usize);
+                f.stack.push_obj(sym.class.j_class);
+                return;
+            }
         }
 
         panic!("java.lang.ClassFormatError");

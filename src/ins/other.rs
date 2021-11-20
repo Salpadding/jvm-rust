@@ -1,6 +1,5 @@
 use crate::ins::Other;
 use crate::op::OpCode;
-use crate::rp::Rp;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
 
 impl Other for OpCode {

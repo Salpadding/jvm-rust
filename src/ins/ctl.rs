@@ -92,19 +92,25 @@ impl Control for OpCode {
             ireturn | lreturn | freturn | dreturn | areturn | return_void => {
                 if self == ireturn || self == freturn {
                     let c = mf.stack.pop_u32();
-                    th.stack.prev_frame().stack.push_u32(c)
+                    th.prev_frame().stack.push_u32(c)
                 }
 
                 if self == lreturn || self == dreturn {
                     let c = mf.stack.pop_u64();
-                    th.stack.prev_frame().stack.push_u64(c)
+                    th.prev_frame().stack.push_u64(c)
                 }
 
                 if self == areturn {
                     let c = mf.stack.pop_cell();
-                    th.stack.prev_frame().stack.push_cell(c)
+                    th.prev_frame().stack.push_cell(c)
                 }
-                th.stack.pop_frame();
+                // println!("exit frame {}.{}", mf.method.class.name, mf.method.name);
+                th.pop_frame();
+                // println!(
+                //     "cur frame = {}.{}",
+                //     th.cur_frame().method.class.name,
+                //     th.cur_frame().method.name
+                // );
             }
             _ => {
                 panic!("invalid op {:?}", self);

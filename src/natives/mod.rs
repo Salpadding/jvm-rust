@@ -1,10 +1,25 @@
-use crate::{
-    rp::Rp,
-    runtime::vm::{JFrame, JThread},
-};
+macro_rules! jlo {
+    () => {
+        fn class_name(&self) -> &str {
+            "java/lang/Object"
+        }
+    };
+}
+
+macro_rules! reg {
+    ($r: expr, $($i:ident),+) => {{
+        $(
+            $r.register(std::boxed::Box::new($i {}));
+        )+
+    }};
+}
+
+mod object;
+
+use crate::runtime::vm::JFrame;
 use std::collections::BTreeMap;
 
-use super::desc::{DescriptorParser, JType, MethodDescriptor};
+use crate::heap::desc::{DescriptorParser, MethodDescriptor};
 
 pub trait NativeMethod {
     fn class_name(&self) -> &str;
@@ -18,12 +33,21 @@ pub struct NativeMethodW {
     pub desc: MethodDescriptor,
 }
 
-#[derive(Default)]
 pub struct NativeRegistry {
     data: BTreeMap<String, NativeMethodW>,
 }
 
 impl NativeRegistry {
+    pub fn new() -> Self {
+        let mut r = NativeRegistry {
+            data: BTreeMap::new(),
+        };
+
+        use crate::natives::object::JLOReg;
+        reg!(r, JLOReg);
+        r
+    }
+
     #[inline]
     fn hash(&self, class: &str, method: &str, desc: &str) -> String {
         format!("{}_{}_{}", class, method, desc)

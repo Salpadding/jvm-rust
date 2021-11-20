@@ -8,16 +8,19 @@ use crate::StringErr;
 use std::collections::BTreeMap;
 
 use super::class::ClassMember;
+use super::misc::{flags, AccessFlags, PRIMITIVES, PRIMITIVE_DESC, PRIMITIVE_N};
 
 #[derive(Debug)]
 pub struct ClassLoader {
     entry: Box<dyn Entry>,
     pub loaded: BTreeMap<String, Rp<Class>>,
     classes: Vec<Rp<Class>>,
+    java_lang_class: Rp<Class>,
 }
 
 impl ClassLoader {
-    pub fn insert(&mut self, class: Class, alias: &str) -> Rp<Class> {
+    // insert a primitive class
+    fn insert(&mut self, class: Class, alias: &str) -> Rp<Class> {
         let class_id = self.classes.len();
         self.classes.push(Rp::new(class));
         let p = self.classes[class_id];
@@ -27,21 +30,63 @@ impl ClassLoader {
         if !alias.is_empty() {
             self.loaded.insert(alias.to_string(), p);
         }
+
+        self.assign_j_class(p);
         p
+    }
+
+    // assign class object to class
+    fn assign_j_class(&self, c: Rp<Class>) {
+        if !c.j_class.is_null() {
+            return;
+        }
+
+        // create a class object of size field + 1
+        // we use the last field to store class pointer
+        let mut o = Class::new_obj_size(
+            self.java_lang_class,
+            self.java_lang_class.ins_fields.len() + 1,
+        );
+
+        o.set(self.java_lang_class.ins_fields.len(), c.ptr());
+        c.get_mut().j_class = o;
     }
 
     pub fn new(cp: &str) -> Result<Self, StringErr> {
         let entry = entry::new_entry(cp)?;
 
-        Ok(ClassLoader {
+        let mut cl = ClassLoader {
             entry,
             loaded: BTreeMap::new(),
             classes: Vec::new(),
-        })
+            java_lang_class: Rp::null(),
+        };
+
+        cl.init();
+
+        Ok(cl)
     }
 
-    pub fn get(&self, i: usize) -> Rp<Class> {
-        self.classes[i].into()
+    fn init(&mut self) {
+        if !self.java_lang_class.is_null() {
+            return;
+        }
+
+        self.java_lang_class = self.load("java/lang/Class");
+
+        for c in self.classes.iter() {
+            self.assign_j_class(*c);
+        }
+
+        // load primitives, primitives has no super class
+        for i in 0..PRIMITIVE_N {
+            let mut c = Class::default();
+            c.access_flags = AccessFlags(flags::ACC_PUBLIC);
+            c.name = PRIMITIVES[i].to_string();
+            c.desc = PRIMITIVE_DESC[i].to_string();
+            c.initialized = true;
+            self.insert(c, PRIMITIVE_DESC[i]);
+        }
     }
 
     pub fn load(&mut self, name: &str) -> Rp<Class> {
@@ -57,6 +102,7 @@ impl ClassLoader {
 
             let mut c = Class::default();
             c.initialized = true;
+            c.access_flags = AccessFlags(flags::ACC_PUBLIC);
             c.super_class = self.load("java/lang/Object");
             c.name = name.to_string();
             c.desc = name.to_string();
@@ -143,6 +189,11 @@ impl ClassLoader {
         // link members to class
         let mut p = self.classes[class_id];
         p.get_mut().id = class_id;
+
+        // create class object
+        if !self.java_lang_class.is_null() {
+            p.j_class = Class::new_obj(self.java_lang_class);
+        }
 
         let n = p;
         for f in p.fields.iter_mut() {

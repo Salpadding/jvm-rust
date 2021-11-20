@@ -93,8 +93,8 @@ impl DescriptorParser<'_> {
     }
 
     // dim, full descriptor, element descriptor
-    pub fn parse_arr(&mut self) -> (usize, String, String) {
-        let mut dims: usize = 0;
+    pub fn parse_arr(&mut self) -> (u8, String, String) {
+        let mut dims: u8 = 0;
         let mut s = String::new();
 
         while self.peek() == b'[' {

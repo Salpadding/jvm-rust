@@ -38,6 +38,7 @@ mod cp;
 mod entry;
 mod heap;
 mod ins;
+mod natives;
 mod op;
 mod rp;
 mod runtime;

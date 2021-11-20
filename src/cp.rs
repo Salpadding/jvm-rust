@@ -35,9 +35,9 @@ pub struct ClassFile {
     // 类访问标志
     pub access_flags: u16,
     // 类索引, refers to cp ClassInfo
-    pub this_class_i: u16,
+    this_class_i: u16,
     // 超类索引 refers to cp ClassInfo
-    pub super_class_i: u16,
+    super_class_i: u16,
     // 接口索引 refers to cp ClassInfo
     pub interfaces_i: Vec<u16>,
 
@@ -83,7 +83,7 @@ impl ReadFrom for MemberInfo {
 
 #[derive(Default, Debug)]
 pub struct ConstantPool {
-    pub infos: Vec<ConstantInfo>,
+    infos: Vec<ConstantInfo>,
 }
 
 impl ReadFrom for ConstantPool {
@@ -135,6 +135,13 @@ macro_rules! cp_member {
     };
 }
 
+pub enum Constant {
+    // value, wide?
+    Primitive(u64, bool),
+    // class reference
+    ClassRef(u16),
+}
+
 impl ConstantPool {
     pub fn utf8(&self, i: usize) -> &str {
         match self.infos[i as usize] {
@@ -158,13 +165,14 @@ impl ConstantPool {
         }
     }
 
-    pub fn cell(&self, i: usize) -> (u64, bool) {
+    pub fn constant(&self, i: usize) -> Constant {
         match self.infos[i] {
-            ConstantInfo::Integer(j) => (j as u64, false),
-            ConstantInfo::Float(j) => (j.to_bits() as u64, false),
-            ConstantInfo::Long(j) => (j, true),
-            ConstantInfo::Double(j) => (j.to_bits(), true),
-            _ => panic!("invalid constant index {}", i),
+            ConstantInfo::Integer(j) => Constant::Primitive(j as u64, false),
+            ConstantInfo::Float(j) => Constant::Primitive(j.to_bits() as u64, false),
+            ConstantInfo::Long(j) => Constant::Primitive(j, true),
+            ConstantInfo::Double(j) => Constant::Primitive(j.to_bits(), true),
+            ConstantInfo::Class { name_i } => Constant::ClassRef(name_i),
+            _ => panic!("invalid constant {} {:?}", i, self.infos[i]),
         }
     }
 
@@ -200,6 +208,10 @@ impl ConstantPool {
     cp_member!(field_ref, ConstantInfo::FieldRef);
     cp_member!(method_ref, ConstantInfo::MethodRef);
     cp_member!(iface_ref, ConstantInfo::IFaceMethodRef);
+
+    pub fn len(&self) -> usize {
+        self.infos.len()
+    }
 }
 
 // 常量池

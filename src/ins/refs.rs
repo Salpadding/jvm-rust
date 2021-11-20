@@ -1,4 +1,6 @@
+use crate::heap::class::Class;
 use crate::heap::desc::{JType, JTypeDescriptor};
+use crate::heap::misc::PRIMITIVES;
 use crate::ins::Refs;
 use crate::op::OpCode;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
@@ -10,16 +12,21 @@ impl Refs for OpCode {
         match self {
             new => {
                 let i = rd.u16() as usize;
-
+                let c = mf.method.code[rd.pc as usize];
+                let o: OpCode = c.into();
+                println!("next op = {:?}", o);
                 let ptr = {
                     let sym = { mf.class_ref(i) };
+                    println!("create object for class {}", sym.class.name);
                     if sym.class.get_mut().clinit(th) {
+                        th.revert_pc();
                         return;
                     }
-                    let ptr = mf.new_obj(sym.class);
+                    let ptr = Class::new_obj(sym.class);
                     ptr
                 };
 
+                println!("push object {}", ptr.class.name);
                 mf.stack.push_obj(ptr);
             }
             multianewarray => {
@@ -38,14 +45,16 @@ impl Refs for OpCode {
                     panic!("java.lang.NegativeArraySize");
                 }
 
-                let id = if self == newarray {
-                    atype - 4
+                if self == newarray {
+                    let arr = mf.heap.new_primitive_array((atype as i32) - 4, n as usize);
+                    mf.stack.push_obj(arr);
                 } else {
-                    mf.class_ref(atype).class.id
-                };
+                    let c = mf.class_ref(atype).class;
 
-                let arr = mf.heap.new_array(id, n as usize);
-                mf.stack.push_obj(arr);
+                    println!("create array element class = {}", c.name);
+                    let arr = mf.heap.new_array(&c.name, n as usize);
+                    mf.stack.push_obj(arr);
+                };
             }
             arraylength => {
                 let obj = mf.stack.pop_obj();
@@ -101,7 +110,7 @@ impl Refs for OpCode {
                         sym.member.m_desc.arg_cells + 1
                     },
                 );
-                th.stack.push_frame(new_frame);
+                th.push_frame(new_frame);
             }
             instanceof | checkcast => {
                 let i = rd.u16() as usize;
@@ -134,6 +143,13 @@ impl Refs for OpCode {
                 let i = rd.u16() as usize;
                 let sym = mf.field_ref(i);
 
+                if self == putstatic {
+                    println!("put static field {}.{}", sym.class.name, sym.member.name);
+                }
+
+                let c = mf.method.code[rd.pc as usize];
+                let o: OpCode = c.into();
+                println!("next op = {:?}", o);
                 if self == putstatic || self == getstatic {
                     if sym.class.get_mut().clinit(th) {
                         return;
