@@ -13,6 +13,8 @@ macro_rules! map {
 }
 use std::collections::HashMap;
 
+use crate::heap::desc::DescriptorParser;
+
 na!(
     JLSReg,
     "java/lang/System",
@@ -21,7 +23,7 @@ na!(
     th,
     f,
     {
-        reg!(f.registry, N0, VM);
+        reg!(f.registry, N0, N1, VM);
     }
 );
 
@@ -85,3 +87,48 @@ na!(VM, "sun/misc/VM", "initialize", "()V", th, f, {
     let m = m.lookup_method_in_class("initializeSystemClass", "()V");
     th.push_frame(th.new_frame(m));
 });
+
+na!(
+    N1,
+    "java/lang/System",
+    "arraycopy",
+    "(Ljava/lang/Object;ILjava/lang/Object;II)V",
+    th,
+    f,
+    {
+        use crate::heap::class::Object;
+        use crate::rp::Rp;
+        let src: Rp<Object> = (f.local_vars[0] as usize).into();
+        let src_p = f.local_vars[1] as usize;
+        let mut dest: Rp<Object> = (f.local_vars[2] as usize).into();
+        let dest_p = f.local_vars[3] as usize;
+        let len = f.local_vars[4] as usize;
+
+        println!(
+            "system array copy start {} {} {} {}",
+            src.class.name, src_p, dest_p, len
+        );
+        let mut parser = DescriptorParser::new(src.class.name.as_bytes());
+        let d = parser.parse_arr();
+        let mut sz = match &src.class.element_class.name[0..1] {
+            "B" | "Z " => 1,
+            "C" | "S" => 2,
+            "F" | "I" => 4,
+            _ => 8,
+        };
+
+        if d.0 != 1 {
+            sz = 8;
+        }
+
+        let total_size = sz * len;
+
+        // copy byte by byte
+        for i in 0..total_size {
+            let x: u8 = src.get(src_p * sz + i);
+            dest.set(dest_p * sz + i, x);
+        }
+
+        println!("system array copy end");
+    }
+);

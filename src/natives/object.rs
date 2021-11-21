@@ -8,7 +8,7 @@ na!(
     th,
     f,
     {
-        reg!(f.registry, N0, N1, N2, N3, N4, N5, N6, N7, N8, N9, N10, N11, N12);
+        reg!(f.registry, N0, N1, N2, N3, N4, N5, N6, N7, N8, N9, N10, N11, N12, N13);
     }
 );
 
@@ -110,4 +110,14 @@ na!(
     th,
     f,
     { f.stack.push_null() }
+);
+
+na!(
+    N13,
+    "java/lang/String",
+    "intern",
+    "()Ljava/lang/String;",
+    th,
+    f,
+    { f.stack.push_obj(f.this()) }
 );

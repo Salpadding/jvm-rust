@@ -64,6 +64,16 @@ pub struct Object {
 }
 
 impl Object {
+    pub fn extra_class(&self) -> Rp<Class> {
+        let p: u64 = self.get(self.size - 1);
+        (p as usize).into()
+    }
+
+    pub fn extra_member(&self) -> Rp<ClassMember> {
+        let p: u64 = self.get(self.size - 1);
+        (p as usize).into()
+    }
+
     pub fn instance_of(&self, c: &Class) -> bool {
         c.is_assignable(&self.class)
     }

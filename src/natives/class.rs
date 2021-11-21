@@ -1,3 +1,5 @@
+use crate::heap::class::Class;
+
 na!(
     ClassReg,
     "java/lang/Class",
@@ -5,7 +7,7 @@ na!(
     "()V",
     th,
     f,
-    { reg!(th.registry, N0, N1, N2, N3) }
+    { reg!(th.registry, N0, N1, N2, N3, N4) }
 );
 
 na!(
@@ -66,5 +68,52 @@ na!(
         let n = js.as_utf8();
         let cl = f.heap.loader.load(&n);
         f.stack.push_obj(cl.j_class)
+    }
+);
+
+na!(
+    N4,
+    "java/lang/Class",
+    "getDeclaredFields0",
+    "(Z)[Ljava/lang/reflect/Field;",
+    th,
+    f,
+    {
+        use crate::heap::class::ClassMember;
+        use crate::rp::Rp;
+
+        let jclass = f.this();
+        let pub_only = f.local_vars[1] != 0;
+        let mut class = jclass.extra_class();
+        let field_class = f.heap.loader.load("java/lang/reflect/Field");
+        let fields: Vec<Rp<ClassMember>> = class
+            .fields
+            .iter_mut()
+            .filter(|x| !pub_only || (x.access_flags.is_public()))
+            .map(|x| {
+                let y: Rp<ClassMember> = x.into();
+                y
+            })
+            .collect();
+
+        let mut field_arr = f.heap.new_array("java/lang/reflect/Field", fields.len());
+
+        f.stack.push_obj(field_arr);
+        if fields.len() == 0 {
+            return;
+        }
+
+        for i in 0..fields.len() {
+            let mut o = Class::new_obj(field_class);
+            let p = o.ptr() as u64;
+
+            // call init method of Field Constructor
+            o.set_field_ref("clazz", class.j_class);
+            println!("field name = {}", &fields[i].name);
+            o.set_field_ref("name", f.heap.new_jstr(&fields[i].name));
+            o.set_field("slot", fields[i].id as u64);
+            o.set_field("modifiers", fields[i].access_flags.0 as u64);
+            field_arr.set(i, p);
+        }
     }
 );

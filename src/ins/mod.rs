@@ -9,6 +9,8 @@ mod refs;
 mod stack;
 mod store;
 
+use std::io::Write;
+
 use crate::op::OpCode;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
 
@@ -73,6 +75,7 @@ impl Ins for u8 {
             c.id,
         );
         }
+
         match self {
             0x00..=0x14 => op.con(rd, th, c),
             0x15..=0x35 => op.load(rd, th, c, wide),

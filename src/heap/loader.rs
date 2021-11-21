@@ -11,7 +11,6 @@ use super::class::ClassMember;
 use super::misc::{flags, AccessFlags, PRIMITIVES, PRIMITIVE_DESC, PRIMITIVE_N};
 use crate::heap::misc::Heap;
 
-#[derive(Debug)]
 pub struct ClassLoader {
     entry: Box<dyn Entry>,
     loaded: BTreeMap<String, Rp<Class>>,

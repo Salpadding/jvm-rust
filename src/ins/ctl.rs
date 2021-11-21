@@ -96,6 +96,25 @@ impl Control for OpCode {
                     s = return_void;
                 }
 
+                if mf.method.name == "equals"
+                    && mf.method.desc == "(Ljava/lang/Object;)Z"
+                    && mf.class.name == "java/lang/String"
+                {
+                    println!("compare string {} to other", mf.this().as_utf8());
+                    use crate::heap::class::Object;
+                    use crate::rp::Rp;
+                    let other: Rp<Object> = (mf.local_vars[1] as usize).into();
+
+                    if !other.is_null() && other.class.name == "java/lang/String" {
+                        println!(
+                            "{} = {} returns {}",
+                            mf.this().as_utf8(),
+                            other.as_utf8(),
+                            mf.stack.slots[mf.stack.size - 1]
+                        )
+                    };
+                }
+
                 if s == ireturn || self == freturn {
                     let c = mf.stack.pop_u32();
                     th.prev_frame().stack.push_u32(c)
@@ -108,6 +127,9 @@ impl Control for OpCode {
 
                 if s == areturn {
                     let c = mf.stack.pop_cell();
+                    if c == 0 {
+                        println!("areturn returns a null")
+                    }
                     th.prev_frame().stack.push_cell(c)
                 }
                 // println!(

@@ -109,8 +109,19 @@ impl JThread {
     }
 
     pub fn new_frame(&self, m: Rp<ClassMember>) -> JFrame {
+        if m.name == "searchFields" && m.class.name == "java/lang/Class" {
+            let bk = self.cur_frame().stack.back_obj(1);
+            println!(
+                "search field {}",
+                if bk.is_null() {
+                    "null".to_string()
+                } else {
+                    bk.as_utf8()
+                }
+            );
+        }
         let id = *self.frame_id;
-        // println!("create frame {}.{} id = {}", m.class.name, m.name, id);
+        println!("create frame {}.{} id = {}", m.class.name, m.name, id);
         (*self.frame_id.get_mut()) = id + 1;
         JFrame::new(id, self.heap, self.registry, m)
     }

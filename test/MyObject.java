@@ -15,21 +15,10 @@ public class MyObject {
     }
 
     public static void main(String[] args) {
-        System.out.println(staticVar);
-        MyObject myObj = new MyObject();
-        myObj.staticVar = 1;
-        int x = myObj.staticVar;
+        String a = "124";
+        String b = "124";
 
-        myObj.instanceVar = 1;
-        x = myObj.instanceVar;
-
-        boolean b = myObj instanceof MyObject;
-        boolean c = myObj instanceof java.lang.Object;
-        Object d = (Object) myObj;
-        MyObject e = (MyObject) d;
-
-        long f = add(staticVar, 3000000000L);
-        System.out.println(f);
+        boolean c = a.equals(b);
     }
 
     public static long add(int a, long b) {

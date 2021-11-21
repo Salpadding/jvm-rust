@@ -10,17 +10,39 @@ impl Refs for OpCode {
 
         match self {
             new => {
+                let d = mf.id >= 865;
+                if d {
+                    println!("new")
+                }
                 let i = rd.u16() as usize;
+                if d {
+                    println!("new")
+                }
                 let ptr = {
+                    if d {
+                        println!("new i = {}", i);
+                    }
                     let sym = { mf.class_ref(i) };
+                    if d {
+                        println!("new")
+                    }
                     if sym.class.get_mut().clinit(th) {
+                        if d {
+                            println!("new")
+                        }
                         th.revert_pc();
                         return;
+                    }
+                    if d {
+                        println!("new")
                     }
                     let ptr = Class::new_obj(sym.class);
                     ptr
                 };
 
+                if d {
+                    println!("new")
+                }
                 mf.stack.push_obj(ptr);
             }
             multianewarray => {
@@ -48,7 +70,6 @@ impl Refs for OpCode {
                     mf.stack.push_obj(arr);
                 } else {
                     let c = mf.class_ref(atype).class;
-
                     let arr = mf.heap.new_array(&c.name, n as usize);
                     mf.stack.push_obj(arr);
                 };
@@ -63,7 +84,7 @@ impl Refs for OpCode {
                 } else {
                     mf.method_ref(rd.u16() as usize)
                 };
-                if self == invokevirtual && mf.id == 488 {
+                if self == invokevirtual && mf.id > 800 {
                     println!("invoke virtual {}.{} ", sym.class.name, sym.member.name);
                 }
                 if self == invokeinterface {
@@ -86,22 +107,17 @@ impl Refs for OpCode {
                         panic!("java.lang.NullPointerException");
                     }
 
-                    if self == invokevirtual && mf.id == 501 {
+                    if self == invokevirtual && mf.id > 800 {
                         use crate::heap::class::Object;
                         use crate::rp::Rp;
                         let o: Rp<Object> = (mf.stack.slots[0] as usize).into();
-                        println!("class of obj = {}", o.class.name);
-                        println!("lookup method {} in class {}", m.name, obj.class.name);
+
+                        println!(
+                            "lookup {}.{} in object {}",
+                            sym.class.name, sym.name, o.class.name
+                        );
                     }
                     m = obj.class.lookup_method_in_class(&sym.name, &sym.desc);
-                    if self == invokevirtual && mf.id == 501 {
-                        if m.is_null() {
-                            println!("method not found");
-                        }
-                        println!("invoke7");
-
-                        println!("method = {:?}", m.as_ref());
-                    }
                 }
 
                 let mut new_frame = th.new_frame(m);

@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::hash::Hash;
 use std::rc::Rc;
 
@@ -80,11 +81,11 @@ pub static PRIMITIVES: [&str; 8] = [
 
 pub static PRIMITIVE_DESC: [&str; 8] = ["Z", "C", "F", "D", "B", "S", "I", "J"];
 
-#[derive(Debug)]
 pub struct Heap {
     pub loader: Rp<ClassLoader>,
     primitives: Vec<Rp<Class>>,
     primitive_array: Vec<Rp<Class>>,
+    string_pool: BTreeMap<String, Rp<Object>>,
     pub java_lang_string: Rp<Class>,
 }
 
@@ -139,6 +140,7 @@ impl Heap {
             primitives: Vec::new(),
             primitive_array: Vec::new(),
             java_lang_string: Rp::null(),
+            string_pool: BTreeMap::new(),
         });
 
         let mut l = ClassLoader::new(cp, h)?;
@@ -156,8 +158,17 @@ impl Heap {
         Ok(h)
     }
 
-    pub fn new_jstr(&self, s: &str) -> Rp<Object> {
+    // create a string from pool
+    pub fn new_jstr(&mut self, s: &str) -> Rp<Object> {
+        let x = self.string_pool.get(s).map(|x| *x).unwrap_or(Rp::null());
+
+        if !x.is_null() {
+            return x;
+        }
+
         let mut o = Class::new_obj(self.java_lang_string);
+        self.string_pool.insert(s.to_string(), o);
+
         // set first field
         let v: Vec<u16> = s.encode_utf16().collect();
         let chars = self.new_primitive_array(primitives::C as i32, v.len());
@@ -167,6 +178,7 @@ impl Heap {
         }
 
         o.set(0, chars.ptr() as u64);
+        self.string_pool.insert(s.to_string(), o);
         o
     }
 
