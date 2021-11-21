@@ -90,27 +90,39 @@ impl Control for OpCode {
                 ls.exec(th, rd, mf);
             }
             ireturn | lreturn | freturn | dreturn | areturn | return_void => {
-                if self == ireturn || self == freturn {
+                let mut s = self;
+
+                if mf.drop {
+                    s = return_void;
+                }
+
+                if s == ireturn || self == freturn {
                     let c = mf.stack.pop_u32();
                     th.prev_frame().stack.push_u32(c)
                 }
 
-                if self == lreturn || self == dreturn {
+                if s == lreturn || self == dreturn {
                     let c = mf.stack.pop_u64();
                     th.prev_frame().stack.push_u64(c)
                 }
 
-                if self == areturn {
+                if s == areturn {
                     let c = mf.stack.pop_cell();
                     th.prev_frame().stack.push_cell(c)
                 }
-                // println!("exit frame {}.{}", mf.method.class.name, mf.method.name);
-                th.pop_frame();
                 // println!(
-                //     "cur frame = {}.{}",
-                //     th.cur_frame().method.class.name,
-                //     th.cur_frame().method.name
+                //     "exit frame {}.{} id = {}",
+                //     mf.method.class.name, mf.method.name, mf.id
                 // );
+                th.pop_frame();
+
+                if !th.stack().is_empty() {
+                    // println!(
+                    //     "cur frame = {}.{}",
+                    //     th.cur_frame().method.class.name,
+                    //     th.cur_frame().method.name
+                    // );
+                }
             }
             _ => {
                 panic!("invalid op {:?}", self);

@@ -1,5 +1,5 @@
 use crate::heap::{class::Class, class::ClassMember, class::Object, misc::Heap, misc::SymRef};
-use crate::natives::{NativeMethod, NativeRegistry};
+use crate::natives::NativeRegistry;
 use crate::rp::Rp;
 use crate::runtime::misc::{BytesReader, OpStack};
 use crate::StringErr;
@@ -15,13 +15,24 @@ pub struct Jvm {
 impl Jvm {
     pub fn new(cp: &str) -> Result<Self, StringErr> {
         let heap = Heap::new(cp)?;
-        let p = Rp::new(heap);
         let r = Rp::new(NativeRegistry::new());
         Ok(Jvm {
             registry: r,
-            heap: p,
-            thread: JThread::new(p, r),
+            heap: heap,
+            thread: JThread::new(heap, r),
         })
+    }
+
+    pub fn init(&mut self) {
+        // 1. init java/lang/System
+        // 2. init sun/misc/VM
+        let mut sys = self.heap.loader.load("java/lang/System");
+        sys.clinit(&mut self.thread);
+        self.thread.run();
+
+        let mut sys = self.heap.loader.load("sun/misc/VM");
+        sys.clinit(&mut self.thread);
+        self.thread.run();
     }
 
     pub fn run_class(&mut self, c: &str) -> Result<(), StringErr> {
@@ -35,9 +46,7 @@ impl Jvm {
             return err!("class {} has no main method", &c.name);
         }
 
-        self.thread
-            .stack
-            .push_frame(JFrame::new(self.heap, self.registry, main));
+        self.thread.stack.push_frame(self.thread.new_frame(main));
         self.thread.run();
 
         Ok(())
@@ -50,6 +59,7 @@ pub struct JThread {
     next_pc: Option<i32>,
     pub heap: Rp<Heap>,
     pub registry: Rp<NativeRegistry>,
+    pub frame_id: Rp<i32>,
 }
 
 impl JThread {
@@ -70,12 +80,22 @@ impl JThread {
             stack: JStack::new(),
             next_pc: None,
             registry,
+            frame_id: Rp::new(0),
         }
+    }
+    #[inline]
+    pub fn stack(&self) -> &JStack {
+        &self.stack
     }
 
     #[inline]
     pub fn push_frame(&mut self, frame: JFrame) {
         self.stack.push_frame(frame)
+    }
+
+    #[inline]
+    pub fn back_frame(&self, i: usize) -> Rp<JFrame> {
+        self.stack.back_frame(i)
     }
 
     #[inline]
@@ -89,8 +109,10 @@ impl JThread {
     }
 
     pub fn new_frame(&self, m: Rp<ClassMember>) -> JFrame {
-        // println!("create frame {}.{}", m.class.name, m.name);
-        JFrame::new(self.heap, self.registry, m)
+        let id = *self.frame_id;
+        // println!("create frame {}.{} id = {}", m.class.name, m.name, id);
+        (*self.frame_id.get_mut()) = id + 1;
+        JFrame::new(id, self.heap, self.registry, m)
     }
 
     #[inline]
@@ -148,6 +170,15 @@ impl JThread {
             // self.print_stack('*');
         }
     }
+
+    // create a new thread to invoke object
+    pub fn invoke_obj(&mut self, obj: &mut Object, name: &str, desc: &str, args: &[u64]) {
+        let m = obj.class.lookup_method(name, desc);
+        let mut nf = self.new_frame(m);
+        nf.drop = true;
+        nf.local_vars.copy_from_slice(args);
+        self.stack.push_frame(nf);
+    }
 }
 
 // TODO: limit stack size
@@ -177,6 +208,11 @@ impl JStack {
     }
 
     #[inline]
+    fn back_frame(&self, i: usize) -> Rp<JFrame> {
+        self.frames[self.size - i].as_ref().unwrap().into()
+    }
+
+    #[inline]
     fn prev_frame(&self) -> Rp<JFrame> {
         self.frames[self.size - 2].as_ref().unwrap().into()
     }
@@ -187,7 +223,7 @@ impl JStack {
     }
 
     #[inline]
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.size == 0
     }
 }
@@ -201,6 +237,8 @@ pub struct JFrame {
     pub heap: Rp<Heap>,
     pub registry: Rp<NativeRegistry>,
     next_pc: i32,
+    pub id: i32,
+    pub drop: bool,
 }
 
 macro_rules! xx_ref {
@@ -218,7 +256,7 @@ impl JFrame {
         (self.local_vars[0] as usize).into()
     }
 
-    fn new(heap: Rp<Heap>, registry: Rp<NativeRegistry>, method: Rp<ClassMember>) -> Self {
+    fn new(id: i32, heap: Rp<Heap>, registry: Rp<NativeRegistry>, method: Rp<ClassMember>) -> Self {
         Self {
             local_vars: vec![0u64; method.max_locals],
             stack: OpStack {
@@ -230,6 +268,8 @@ impl JFrame {
             class: method.class,
             heap,
             next_pc: 0,
+            id,
+            drop: false,
         }
     }
 
@@ -282,7 +322,14 @@ mod test {
     #[test]
     fn test_hello_world() {
         let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
+        jvm.init();
         // TODO: jni
         jvm.run_class("test/HelloWorld").unwrap();
+    }
+
+    #[test]
+    fn test_init() {
+        let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
+        jvm.init();
     }
 }

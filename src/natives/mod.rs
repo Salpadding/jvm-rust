@@ -1,22 +1,19 @@
-macro_rules! jlo {
-    () => {
-        fn class_name(&self) -> &str {
-            "java/lang/Object"
-        }
-    };
-}
-
 macro_rules! reg {
-    ($r: expr, $($i:ident),+) => {{
+    ($r: expr, $($i: ident),+) => {{
         $(
             $r.register(std::boxed::Box::new($i {}));
         )+
     }};
 }
 
+mod class;
+mod io;
 mod object;
+mod security;
+mod sun;
+mod system;
 
-use crate::runtime::vm::JFrame;
+use crate::runtime::vm::{JFrame, JThread};
 use std::collections::BTreeMap;
 
 use crate::heap::desc::{DescriptorParser, MethodDescriptor};
@@ -25,7 +22,7 @@ pub trait NativeMethod {
     fn class_name(&self) -> &str;
     fn method_name(&self) -> &str;
     fn desc(&self) -> &str;
-    fn exec(&self, f: &mut JFrame);
+    fn exec(&self, th: &mut JThread, f: &mut JFrame);
 }
 
 pub struct NativeMethodW {
@@ -42,9 +39,27 @@ impl NativeRegistry {
         let mut r = NativeRegistry {
             data: BTreeMap::new(),
         };
-
+        use crate::natives::class::ClassReg;
+        use crate::natives::io::{FDInitIds, FileISInitIds, FileOSInitIds};
         use crate::natives::object::JLOReg;
-        reg!(r, JLOReg);
+        use crate::natives::security::*;
+        use crate::natives::sun::{ReflectCallerClass, UnsafeReg};
+        use crate::natives::system::{JLSReg, VM};
+        reg!(
+            r,
+            JLOReg,
+            JLSReg,
+            VM,
+            FileOSInitIds,
+            FileISInitIds,
+            FDInitIds,
+            ReflectCallerClass,
+            UnsafeReg,
+            ACGetCtx,
+            ACDopri,
+            ACDopri2,
+            ClassReg
+        );
         r
     }
 
@@ -65,9 +80,13 @@ impl NativeRegistry {
         self.data.insert(h, o);
     }
     pub fn find(&self, class: &str, method: &str, desc: &str) -> &NativeMethodW {
-        self.data
-            .get(&self.hash(class, method, desc))
-            .as_ref()
-            .unwrap()
+        let h = self.hash(class, method, desc);
+        let data = self.data.get(&h);
+
+        if data.is_none() {
+            panic!("native method {} not found", h);
+        }
+
+        data.unwrap()
     }
 }

@@ -14,7 +14,6 @@ trait DupStack {
 
 impl DupStack for OpStack {
     fn dup(&mut self) {
-        println!("stack size = {}", self.size);
         let top = { self.slots[self.size - 1] };
         self.push_cell(top);
     }

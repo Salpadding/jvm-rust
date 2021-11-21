@@ -197,15 +197,19 @@ impl<T> Rp<T> {
 }
 
 impl<T: Clone + Default> Rp<T> {
-    // alloc a continous memory to store n struct T
-    pub fn alloc(num: usize) -> Self {
-        let b: Vec<T> = vec![T::default(); num];
+    #[inline]
+    pub fn from_vec(b: Vec<T>) -> Self {
         let p = b.as_ptr() as usize;
         std::mem::forget(b);
         Self {
             ptr: p,
             p: PhantomData,
         }
+    }
+    // alloc a continous memory to store n struct T
+    pub fn alloc(num: usize) -> Self {
+        let b: Vec<T> = vec![T::default(); num];
+        Self::from_vec(b)
     }
 
     // free a continous memory

@@ -78,14 +78,14 @@ pub static PRIMITIVES: [&str; 8] = [
     "boolean", "char", "float", "double", "byte", "short", "int", "long",
 ];
 
-pub static PRIMITIVE_DESC: [&str; 8] = ["Z", "C", "F", "D", "B", "S", "I", "L"];
+pub static PRIMITIVE_DESC: [&str; 8] = ["Z", "C", "F", "D", "B", "S", "I", "J"];
 
 #[derive(Debug)]
 pub struct Heap {
-    pub loader: ClassLoader,
+    pub loader: Rp<ClassLoader>,
     primitives: Vec<Rp<Class>>,
     primitive_array: Vec<Rp<Class>>,
-    string: Rp<Class>,
+    pub java_lang_string: Rp<Class>,
 }
 
 macro_rules! xx_ref {
@@ -133,42 +133,40 @@ macro_rules! arr {
 }
 
 impl Heap {
-    pub fn new(cp: &str) -> Result<Self, StringErr> {
-        let l = ClassLoader::new(cp)?;
-        // int long char short boolean byte double float
-
-        let mut h = Heap {
-            loader: l,
+    pub fn new(cp: &str) -> Result<Rp<Self>, StringErr> {
+        let mut h = Rp::new(Heap {
+            loader: Rp::null(),
             primitives: Vec::new(),
             primitive_array: Vec::new(),
-            string: Rp::null(),
-        };
+            java_lang_string: Rp::null(),
+        });
+
+        let mut l = ClassLoader::new(cp, h)?;
+        // int long char short boolean byte double float
 
         // cache is primitive types
         for p in PRIMITIVES.iter() {
-            h.primitives.push(h.loader.load(p));
+            h.primitives.push(l.load(p));
         }
 
         for p in PRIMITIVE_DESC.iter() {
-            h.primitive_array.push(h.loader.load(&format!("[{}", p)))
+            h.primitive_array.push(l.load(&format!("[{}", p)))
         }
-
-        h.string = h.loader.load("java/lang/String");
 
         Ok(h)
     }
 
-    pub fn new_string(&self, s: &str) -> Rp<Object> {
-        let mut o = Class::new_obj(self.string);
+    pub fn new_jstr(&self, s: &str) -> Rp<Object> {
+        let mut o = Class::new_obj(self.java_lang_string);
         // set first field
         let v: Vec<u16> = s.encode_utf16().collect();
-        let char_arrr = self.new_primitive_array(primitives::C as i32, v.len());
-        let mut arr: Rp<u16> = char_arrr.data.into();
+        let chars = self.new_primitive_array(primitives::C as i32, v.len());
+        let mut arr: Rp<u16> = chars.data.into();
         for i in 0..v.len() {
             arr[i] = v[i];
         }
 
-        o.set(0, char_arrr.ptr() as u64);
+        o.set(0, chars.ptr() as u64);
         o
     }
 
@@ -270,11 +268,11 @@ pub struct SymRef {
 
 #[cfg(test)]
 mod test {
-    use crate::heap::{desc::DescriptorParser, loader::ClassLoader};
+    use crate::heap::{desc::DescriptorParser, loader::ClassLoader, misc::Heap};
 
     #[test]
     fn loader_test() {
-        let mut loader = ClassLoader::new(".:test/rt.jar").unwrap();
+        let mut loader = Heap::new(".:test/rt.jar").unwrap().loader;
         let class = loader.load("test/MyObject");
         let r = class.as_ref();
         println!("{:#?}", r);

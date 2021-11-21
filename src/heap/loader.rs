@@ -9,13 +9,16 @@ use std::collections::BTreeMap;
 
 use super::class::ClassMember;
 use super::misc::{flags, AccessFlags, PRIMITIVES, PRIMITIVE_DESC, PRIMITIVE_N};
+use crate::heap::misc::Heap;
 
 #[derive(Debug)]
 pub struct ClassLoader {
     entry: Box<dyn Entry>,
-    pub loaded: BTreeMap<String, Rp<Class>>,
+    loaded: BTreeMap<String, Rp<Class>>,
     classes: Vec<Rp<Class>>,
     java_lang_class: Rp<Class>,
+    java_lang_string: Rp<Class>,
+    heap: Rp<Heap>,
 }
 
 impl ClassLoader {
@@ -52,16 +55,19 @@ impl ClassLoader {
         c.get_mut().j_class = o;
     }
 
-    pub fn new(cp: &str) -> Result<Self, StringErr> {
+    pub fn new(cp: &str, heap: Rp<Heap>) -> Result<Rp<Self>, StringErr> {
         let entry = entry::new_entry(cp)?;
 
-        let mut cl = ClassLoader {
+        let mut cl = Rp::new(ClassLoader {
             entry,
             loaded: BTreeMap::new(),
             classes: Vec::new(),
             java_lang_class: Rp::null(),
-        };
+            java_lang_string: Rp::null(),
+            heap,
+        });
 
+        heap.get_mut().loader = cl;
         cl.init();
 
         Ok(cl)
@@ -72,6 +78,8 @@ impl ClassLoader {
             return;
         }
 
+        self.java_lang_string = self.load("java/lang/String");
+        self.heap.java_lang_string = self.java_lang_string;
         self.java_lang_class = self.load("java/lang/Class");
 
         for c in self.classes.iter() {
@@ -81,6 +89,7 @@ impl ClassLoader {
         // load primitives, primitives has no super class
         for i in 0..PRIMITIVE_N {
             let mut c = Class::default();
+            c.heap = self.heap;
             c.access_flags = AccessFlags(flags::ACC_PUBLIC);
             c.name = PRIMITIVES[i].to_string();
             c.desc = PRIMITIVE_DESC[i].to_string();
@@ -101,13 +110,14 @@ impl ClassLoader {
             let (dim, _, el) = parser.parse_arr();
 
             let mut c = Class::default();
+            c.heap = self.heap;
             c.initialized = true;
             c.access_flags = AccessFlags(flags::ACC_PUBLIC);
             c.super_class = self.load("java/lang/Object");
             c.name = name.to_string();
             c.desc = name.to_string();
             c.dim = dim;
-            c.element_class = self.load(&el);
+            c.element_class = self.load(&el.class());
 
             return self.insert(c, "");
         }
@@ -117,23 +127,42 @@ impl ClassLoader {
     }
 
     fn inject_native(&self, m: &mut ClassMember) {
-        m.max_locals = m.m_desc.arg_cells;
+        m.max_locals = if m.access_flags.is_static() {
+            m.m_desc.arg_cells
+        } else {
+            m.m_desc.arg_cells + 1
+        };
 
-        match &m.m_desc.ret.as_str()[..1] {
+        if m.name == "getCallerClass" {
+            println!("desc.ret = {:?} desc = {}", m.m_desc.ret, m.desc);
+        }
+
+        use crate::heap::desc::JType;
+        match &m.m_desc.ret {
             // return
-            "V" => m.code = [0xfe, 0xb1].to_vec(),
+            JType::V => m.code = [0xfe, 0xb1].to_vec(),
             // lreturn
-            "D" | "J" => m.code = [0xfe, 0xad].to_vec(),
+            JType::DJ(_) => {
+                m.code = [0xfe, 0xad].to_vec();
+                m.max_stack = 2
+            }
             // areturn
-            "L" | "[" => m.code = [0xfe, 0xb0].to_vec(),
+            JType::A(_) => {
+                m.code = [0xfe, 0xb0].to_vec();
+                m.max_stack = 1
+            }
             // C Z B I F => ireturn
-            _ => m.code = [0xfe, 0xac].to_vec(),
+            _ => {
+                m.code = [0xfe, 0xac].to_vec();
+                m.max_stack = 1;
+            }
         }
     }
 
     fn define(&mut self, name: &str, bytes: Vec<u8>) -> Rp<Class> {
         let file = ClassFile::new(bytes);
         let mut cl: Class = file.into();
+        cl.heap = self.heap;
         for m in cl.methods.iter_mut() {
             let mut parser = DescriptorParser::new(m.desc.as_bytes());
             m.m_desc = parser.parse_method();
@@ -192,7 +221,7 @@ impl ClassLoader {
 
         // create class object
         if !self.java_lang_class.is_null() {
-            p.j_class = Class::new_obj(self.java_lang_class);
+            self.assign_j_class(p);
         }
 
         let n = p;

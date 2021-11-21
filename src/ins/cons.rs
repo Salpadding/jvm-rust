@@ -29,8 +29,13 @@ impl Ldc for OpCode {
                 }
             }
             crate::cp::Constant::ClassRef(i) => {
-                let sym = f.class_ref(i as usize);
-                f.stack.push_obj(sym.class.j_class);
+                let n = f.class.cp.utf8(i as usize);
+                let c = f.heap.loader.load(n);
+                f.stack.push_obj(c.j_class);
+                return;
+            }
+            crate::cp::Constant::String(s) => {
+                f.stack.push_obj(f.heap.new_jstr(s));
                 return;
             }
         }

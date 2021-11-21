@@ -7,6 +7,7 @@ use core::fmt::Debug;
 use std::ops::Deref;
 
 use super::desc::MethodDescriptor;
+use crate::heap::misc::Heap;
 
 impl From<ClassFile> for Class {
     fn from(mut c: ClassFile) -> Self {
@@ -56,13 +57,39 @@ impl From<&mut MemberInfo> for ClassMember {
 // represents both object and primitive array
 pub struct Object {
     pub class: Rp<Class>,
+    // object size/array length
     pub size: usize,
+    // heap data
     pub data: usize,
 }
 
 impl Object {
     pub fn instance_of(&self, c: &Class) -> bool {
         c.is_assignable(&self.class)
+    }
+
+    pub fn set_field_ref(&mut self, field: &str, r: Rp<Object>) {
+        self.set_field(field, r.ptr() as u64);
+    }
+
+    pub fn set_field(&mut self, field: &str, v: u64) {
+        for i in (0..self.class.ins_fields.len()).rev() {
+            if self.class.ins_fields[i].name == field {
+                self.set(i, v);
+                return;
+            }
+        }
+    }
+
+    pub fn as_utf8(&self) -> String {
+        let chars: u64 = self.get(0);
+        let chars: Rp<Object> = (chars as usize).into();
+        let mut v = vec![0u16; chars.size];
+        let a: Rp<u16> = chars.data.into();
+        for i in 0..chars.size {
+            v[i] = a[i]
+        }
+        String::from_utf16(&v).unwrap()
     }
 
     pub fn set<T>(&mut self, i: usize, val: T) {
@@ -78,6 +105,7 @@ impl Object {
 
 #[derive(Default)]
 pub struct Class {
+    pub heap: Rp<Heap>,
     pub access_flags: AccessFlags,
     pub name: String,
     pub desc: String,
@@ -327,20 +355,23 @@ impl Class {
         for i in 0..self.static_fields.len() {
             let f = self.static_fields[i];
 
-            if !f.access_flags.is_final() {
+            if !f.access_flags.is_final() || f.cons_i == 0 {
                 continue;
             }
 
-            match f.desc.as_str() {
-                "Z" | "B" | "C" | "S" | "I" => {
-                    self.static_vars[i] = self.cp.u32(f.cons_i) as u64;
-                }
-                "J" => {
-                    self.static_vars[i] = self.cp.u64(f.cons_i);
-                }
-                "F" => self.static_vars[i] = self.cp.f32(f.cons_i).to_bits() as u64,
-                "D" => self.static_vars[i] = self.cp.f64(f.cons_i).to_bits(),
-                _ => {}
+            let (c, b) = match self.cp.constant(f.cons_i) {
+                crate::cp::Constant::Primitive(i, _) => (i, true),
+                crate::cp::Constant::String(s) => (self.heap.new_jstr(s).ptr() as u64, true),
+                _ => (0, false),
+            };
+
+            if b {
+                self.static_vars[i] = c;
+                return;
+            }
+
+            if f.cons_i != 0 {
+                println!("need con {:?}", self.cp.constant(f.cons_i))
             }
         }
     }

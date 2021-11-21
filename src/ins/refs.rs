@@ -14,10 +14,8 @@ impl Refs for OpCode {
                 let i = rd.u16() as usize;
                 let c = mf.method.code[rd.pc as usize];
                 let o: OpCode = c.into();
-                println!("next op = {:?}", o);
                 let ptr = {
                     let sym = { mf.class_ref(i) };
-                    println!("create object for class {}", sym.class.name);
                     if sym.class.get_mut().clinit(th) {
                         th.revert_pc();
                         return;
@@ -26,7 +24,6 @@ impl Refs for OpCode {
                     ptr
                 };
 
-                println!("push object {}", ptr.class.name);
                 mf.stack.push_obj(ptr);
             }
             multianewarray => {
@@ -38,7 +35,11 @@ impl Refs for OpCode {
                 mf.stack.push_obj(arr)
             }
             newarray | anewarray => {
-                let atype = rd.u16() as usize;
+                let atype = if self == newarray {
+                    rd.u8() as usize
+                } else {
+                    rd.u16() as usize
+                };
                 let n = mf.stack.pop_i32() as i32;
 
                 if n < 0 {
@@ -46,12 +47,11 @@ impl Refs for OpCode {
                 }
 
                 if self == newarray {
-                    let arr = mf.heap.new_primitive_array((atype as i32) - 4, n as usize);
+                    let arr = mf.heap.new_primitive_array((atype - 4) as i32, n as usize);
                     mf.stack.push_obj(arr);
                 } else {
                     let c = mf.class_ref(atype).class;
 
-                    println!("create array element class = {}", c.name);
                     let arr = mf.heap.new_array(&c.name, n as usize);
                     mf.stack.push_obj(arr);
                 };
@@ -66,29 +66,14 @@ impl Refs for OpCode {
                 } else {
                     mf.method_ref(rd.u16() as usize)
                 };
+                if self == invokevirtual && mf.id == 488 {
+                    println!("invoke virtual {}.{} ", sym.class.name, sym.member.name);
+                }
                 if self == invokeinterface {
                     rd.u16();
                 }
 
                 let mut m = sym.member;
-
-                // hack System.out.println
-                if m.name == "println" {
-                    match m.desc.as_str() {
-                        "(I)V" => {
-                            println!("{}", mf.stack.pop_i32());
-                            // pop this pointer
-                            mf.stack.pop_cell();
-                        }
-                        "(J)V" => {
-                            println!("{}", mf.stack.pop_i64());
-                            // pop this pointer
-                            mf.stack.pop_cell();
-                        }
-                        _ => {}
-                    }
-                    return;
-                }
 
                 // invoke virtual, resolve method in object class
                 if self == invokevirtual || self == invokeinterface {
@@ -97,7 +82,22 @@ impl Refs for OpCode {
                         panic!("java.lang.NullPointerException");
                     }
 
+                    if self == invokevirtual && mf.id == 501 {
+                        use crate::heap::class::Object;
+                        use crate::rp::Rp;
+                        let o: Rp<Object> = (mf.stack.slots[0] as usize).into();
+                        println!("class of obj = {}", o.class.name);
+                        println!("lookup method {} in class {}", m.name, obj.class.name);
+                    }
                     m = obj.class.lookup_method_in_class(&sym.name, &sym.desc);
+                    if self == invokevirtual && mf.id == 501 {
+                        if m.is_null() {
+                            println!("method not found");
+                        }
+                        println!("invoke7");
+
+                        println!("method = {:?}", m.as_ref());
+                    }
                 }
 
                 let mut new_frame = th.new_frame(m);
@@ -134,7 +134,7 @@ impl Refs for OpCode {
                     } else {
                         o.class.name.to_string()
                     };
-                    panic!("cannot cast object {} to {}", o, sym.name);
+                    // panic!("cannot cast object {} to {}", o, sym.name);
                 }
 
                 mf.stack.push_obj(o);
@@ -143,23 +143,18 @@ impl Refs for OpCode {
                 let i = rd.u16() as usize;
                 let sym = mf.field_ref(i);
 
-                if self == putstatic {
-                    println!("put static field {}.{}", sym.class.name, sym.member.name);
-                }
-
                 let c = mf.method.code[rd.pc as usize];
-                let o: OpCode = c.into();
-                println!("next op = {:?}", o);
                 if self == putstatic || self == getstatic {
                     if sym.class.get_mut().clinit(th) {
+                        th.revert_pc();
                         return;
                     }
                 }
 
                 let mut class = sym.class;
 
-                match sym.desc.jtype() {
-                    JType::IF => {
+                match sym.desc.slots() {
+                    1 => {
                         match self {
                             putstatic => class.set_static(sym.member.id, mf.stack.pop_u32() as u64),
                             getstatic => mf.stack.push_u32(class.get_static(sym.member.id) as u32),
@@ -176,7 +171,7 @@ impl Refs for OpCode {
                             _ => {}
                         };
                     }
-                    JType::DJ => {
+                    2 => {
                         match self {
                             putstatic => class.set_static(sym.member.id, mf.stack.pop_u64() as u64),
                             getstatic => mf.stack.push_u64(class.get_static(sym.member.id)),
@@ -193,7 +188,7 @@ impl Refs for OpCode {
                             _ => {}
                         };
                     }
-                    JType::A => match self {
+                    _ => match self {
                         putstatic => class.set_static(sym.member.id, mf.stack.pop_cell()),
                         getstatic => mf.stack.push_cell(class.get_static(sym.member.id)),
                         putfield => {

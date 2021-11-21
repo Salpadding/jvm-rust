@@ -135,11 +135,13 @@ macro_rules! cp_member {
     };
 }
 
-pub enum Constant {
+#[derive(Debug)]
+pub enum Constant<'a> {
     // value, wide?
     Primitive(u64, bool),
     // class reference
     ClassRef(u16),
+    String(&'a str),
 }
 
 impl ConstantPool {
@@ -153,7 +155,7 @@ impl ConstantPool {
     pub fn class(&self, i: usize) -> &str {
         let j = match self.infos[i as usize] {
             ConstantInfo::Class { name_i } => name_i,
-            _ => panic!("invalid class index"),
+            _ => panic!("invalid class index {}", i),
         };
         self.utf8(j as usize)
     }
@@ -172,6 +174,7 @@ impl ConstantPool {
             ConstantInfo::Long(j) => Constant::Primitive(j, true),
             ConstantInfo::Double(j) => Constant::Primitive(j.to_bits(), true),
             ConstantInfo::Class { name_i } => Constant::ClassRef(name_i),
+            ConstantInfo::String { utf8_i } => Constant::String(self.utf8(utf8_i as usize)),
             _ => panic!("invalid constant {} {:?}", i, self.infos[i]),
         }
     }
