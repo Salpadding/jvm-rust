@@ -119,5 +119,10 @@ na!(
     "()Ljava/lang/String;",
     th,
     f,
-    { f.stack.push_obj(f.this()) }
+    {
+        let this = f.this();
+        println!("String.intern {} ", this.as_utf8());
+        let o = f.heap.new_jstr(&this.as_utf8());
+        f.stack.push_obj(o)
+    }
 );

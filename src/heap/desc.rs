@@ -70,7 +70,9 @@ impl DescriptorParser<'_> {
 
     pub fn parse_method(&mut self) -> MethodDescriptor {
         if self.peek() != b'(' {
-            panic!("not a method descriptor");
+            panic!("not a method descriptor {}", unsafe {
+                String::from_utf8_unchecked(self.bytes.into())
+            });
         }
 
         self.u8();

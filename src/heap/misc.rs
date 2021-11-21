@@ -166,6 +166,12 @@ impl Heap {
             return x;
         }
 
+        let o = self.create_jstr(s);
+        self.string_pool.insert(s.to_string(), o);
+        o
+    }
+
+    fn create_jstr(&mut self, s: &str) -> Rp<Object> {
         let mut o = Class::new_obj(self.java_lang_string);
         self.string_pool.insert(s.to_string(), o);
 
@@ -178,7 +184,6 @@ impl Heap {
         }
 
         o.set(0, chars.ptr() as u64);
-        self.string_pool.insert(s.to_string(), o);
         o
     }
 
