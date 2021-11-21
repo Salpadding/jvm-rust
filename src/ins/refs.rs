@@ -208,6 +208,9 @@ impl Refs for OpCode {
                     },
                 }
             }
+            monitorenter | monitorexit => {
+                mf.stack.pop_cell();
+            }
             _ => {
                 panic!("invalid op {:?}", self);
             }

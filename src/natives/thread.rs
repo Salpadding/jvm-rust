@@ -8,7 +8,7 @@ na!(
     th,
     f,
     {
-        reg!(th.registry, N0);
+        reg!(th.registry, N0, N1, N2, N3);
     }
 );
 
@@ -31,3 +31,10 @@ na!(
         f.stack.push_obj(o)
     }
 );
+
+na!(N1, "java/lang/Thread", "setPriority0", "(I)V", th, f, {});
+na!(N2, "java/lang/Thread", "isAlive", "()Z", th, f, {
+    f.stack.push_u32(0)
+});
+
+na!(N3, "java/lang/Thread", "start0", "()V", th, f, {});
