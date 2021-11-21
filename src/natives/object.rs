@@ -1,66 +1,113 @@
-use crate::natives::NativeMethod;
-use crate::runtime::vm::{JFrame, JThread};
+use crate::runtime::misc::Slots;
 
-macro_rules! jlo {
-    () => {
-        fn class_name(&self) -> &str {
-            "java/lang/Object"
-        }
-    };
-}
-
-pub struct JLOReg {}
-
-impl NativeMethod for JLOReg {
-    jlo!();
-
-    fn desc(&self) -> &str {
-        "()V"
+na!(
+    JLOReg,
+    "java/lang/Object",
+    "registerNatives",
+    "()V",
+    th,
+    f,
+    {
+        reg!(f.registry, N0, N1, N2, N3, N4, N5, N6, N7, N8, N9, N10, N11, N12);
     }
+);
 
-    fn method_name(&self) -> &str {
-        "registerNatives"
-    }
-
-    fn exec(&self, th: &mut JThread, f: &mut JFrame) {
-        reg!(f.registry, JLOgetClass, JLOHashCode);
-    }
-}
-
-pub struct JLOgetClass {}
-
-impl NativeMethod for JLOgetClass {
-    jlo!();
-
-    fn desc(&self) -> &str {
-        "()Ljava/lang/Class;"
-    }
-
-    fn method_name(&self) -> &str {
-        "getClass"
-    }
-
-    fn exec(&self, th: &mut JThread, f: &mut JFrame) {
+na!(
+    N0,
+    "java/lang/Object",
+    "getClass",
+    "()Ljava/lang/Class;",
+    th,
+    f,
+    {
         let ths = f.this();
         f.stack.push_obj(ths.class.j_class);
     }
+);
+
+na!(N1, "java/lang/Object", "hashCode", "()I", th, f, {
+    let ths = f.this();
+    f.stack.push_u32(ths.ptr() as u32)
+});
+
+na!(N2, "java/lang/Float", "floatToRawIntBits", "(F)I", th, f, {
+    f.stack.push_u32(f.local_vars[0] as u32)
+});
+
+na!(
+    N3,
+    "java/lang/Double",
+    "doubleToRawLongBits",
+    "(D)J",
+    th,
+    f,
+    { f.stack.push_u64(f.local_vars.get_u64(0)) }
+);
+
+na!(N4, "java/lang/Double", "longBitsToDouble", "(J)D", th, f, {
+    f.stack.push_u64(f.local_vars.get_u64(0))
+});
+
+na!(N5, "java/io/FileOutputStream", "initIDs", "()V", th, f, {});
+na!(N6, "java/io/FileInputStream", "initIDs", "()V", th, f, {});
+na!(N7, "java/io/FileDescriptor", "initIDs", "()V", th, f, {});
+na!(N8, "java/io/FileDescriptor", "set", "(I)J", th, f, {
+    f.stack.push_u64(f.local_vars[0]);
+});
+
+na!(
+    N9,
+    "sun/reflect/Reflection",
+    "getCallerClass",
+    "()Ljava/lang/Class;",
+    th,
+    f,
+    {
+        let caller_frame = th.back_frame(3);
+        let caller_class = caller_frame.class.j_class;
+        f.stack.push_obj(caller_class)
+    }
+);
+
+macro_rules! ac {
+    ($th: ident, $f: ident) => {{
+        let this = $f.this();
+        $f.stack.push_obj(this);
+
+        $th.invoke_obj(
+            this.get_mut(),
+            "run",
+            "()Ljava/lang/Object;",
+            &[this.ptr() as u64],
+        );
+    }};
 }
+na!(
+    N10,
+    "java/security/AccessController",
+    "doPrivileged",
+    "(Ljava/security/PrivilegedExceptionAction;)Ljava/lang/Object;",
+    th,
+    f,
+    { ac!(th, f) }
+);
 
-pub struct JLOHashCode {}
+na!(
+    N11,
+    "java/security/AccessController",
+    "doPrivileged",
+    "(Ljava/security/PrivilegedAction;)Ljava/lang/Object;",
+    th,
+    f,
+    { ac!(th, f) }
+);
 
-impl NativeMethod for JLOHashCode {
-    jlo!();
-
-    fn desc(&self) -> &str {
-        "()I"
-    }
-
-    fn method_name(&self) -> &str {
-        "hashCode"
-    }
-
-    fn exec(&self, th: &mut JThread, f: &mut JFrame) {
-        let ths = f.this();
-        f.stack.push_u32(ths.ptr() as u32)
-    }
-}
+na!(
+    N12,
+    "java/security/AccessController",
+    "getStackAccessControlContext",
+    "()Ljava/security/AccessControlContext;",
+    th,
+    f,
+    { f.stack.push_null() }
+);

@@ -13,19 +13,46 @@ macro_rules! map {
 }
 use std::collections::HashMap;
 
-use crate::natives::NativeMethod;
-use crate::runtime::vm::{JFrame, JThread};
+na!(
+    JLSReg,
+    "java/lang/System",
+    "registerNatives",
+    "()V",
+    th,
+    f,
+    {
+        reg!(f.registry, N0, VM);
+    }
+);
 
-macro_rules! jls {
-    () => {
-        fn class_name(&self) -> &str {
-            "java/lang/System"
+na!(
+    N0,
+    "java/lang/System",
+    "initProperties",
+    "(Ljava/util/Properties;)Ljava/util/Properties;",
+    th,
+    f,
+    {
+        // call Properties.set()
+        let this = f.this();
+
+        let props = sys_props();
+        for (k, v) in props.iter() {
+            let args = [
+                this.ptr() as u64,
+                th.heap.new_jstr(k).ptr() as u64,
+                th.heap.new_jstr(v).ptr() as u64,
+            ];
+            th.invoke_obj(
+                this.get_mut(),
+                "setProperty",
+                "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;",
+                &args,
+            )
         }
-    };
-}
-
-pub struct JLSReg {}
-pub struct JLSinitProps {}
+        f.stack.push_obj(this);
+    }
+);
 
 fn sys_props() -> HashMap<String, String> {
     map! {
@@ -52,73 +79,9 @@ fn sys_props() -> HashMap<String, String> {
     }
 }
 
-impl NativeMethod for JLSReg {
-    jls!();
-
-    fn desc(&self) -> &str {
-        "()V"
-    }
-
-    fn method_name(&self) -> &str {
-        "registerNatives"
-    }
-
-    fn exec(&self, th: &mut JThread, f: &mut JFrame) {
-        reg!(f.registry, JLSinitProps);
-    }
-}
-
-impl NativeMethod for JLSinitProps {
-    jls!();
-
-    fn desc(&self) -> &str {
-        "(Ljava/util/Properties;)Ljava/util/Properties;"
-    }
-
-    fn method_name(&self) -> &str {
-        "initProperties"
-    }
-
-    fn exec(&self, th: &mut JThread, f: &mut JFrame) {
-        // call Properties.set()
-        let this = f.this();
-
-        let props = sys_props();
-        for (k, v) in props.iter() {
-            let args = [
-                this.ptr() as u64,
-                th.heap.new_jstr(k).ptr() as u64,
-                th.heap.new_jstr(v).ptr() as u64,
-            ];
-            th.invoke_obj(
-                this.get_mut(),
-                "setProperty",
-                "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;",
-                &args,
-            )
-        }
-        f.stack.push_obj(this);
-    }
-}
-
-pub struct VM {}
-
-impl NativeMethod for VM {
-    fn class_name(&self) -> &str {
-        "sun/misc/VM"
-    }
-    fn desc(&self) -> &str {
-        "()V"
-    }
-
-    fn method_name(&self) -> &str {
-        "initialize"
-    }
-
-    fn exec(&self, th: &mut JThread, f: &mut JFrame) {
-        // call initializeSystemClass
-        let m = f.heap.loader.load("java/lang/System");
-        let m = m.lookup_method_in_class("initializeSystemClass", "()V");
-        th.push_frame(th.new_frame(m));
-    }
-}
+na!(VM, "sun/misc/VM", "initialize", "()V", th, f, {
+    // call initializeSystemClass
+    let m = f.heap.loader.load("java/lang/System");
+    let m = m.lookup_method_in_class("initializeSystemClass", "()V");
+    th.push_frame(th.new_frame(m));
+});

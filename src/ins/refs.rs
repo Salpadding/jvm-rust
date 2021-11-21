@@ -1,6 +1,5 @@
 use crate::heap::class::Class;
-use crate::heap::desc::{JType, JTypeDescriptor};
-use crate::heap::misc::PRIMITIVES;
+use crate::heap::desc::JTypeDescriptor;
 use crate::ins::Refs;
 use crate::op::OpCode;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
@@ -12,8 +11,6 @@ impl Refs for OpCode {
         match self {
             new => {
                 let i = rd.u16() as usize;
-                let c = mf.method.code[rd.pc as usize];
-                let o: OpCode = c.into();
                 let ptr = {
                     let sym = { mf.class_ref(i) };
                     if sym.class.get_mut().clinit(th) {
@@ -74,6 +71,13 @@ impl Refs for OpCode {
                 }
 
                 let mut m = sym.member;
+
+                if self == invokestatic {
+                    if sym.class.get_mut().clinit(th) {
+                        th.revert_pc();
+                        return;
+                    }
+                }
 
                 // invoke virtual, resolve method in object class
                 if self == invokevirtual || self == invokeinterface {
@@ -143,7 +147,6 @@ impl Refs for OpCode {
                 let i = rd.u16() as usize;
                 let sym = mf.field_ref(i);
 
-                let c = mf.method.code[rd.pc as usize];
                 if self == putstatic || self == getstatic {
                     if sym.class.get_mut().clinit(th) {
                         th.revert_pc();

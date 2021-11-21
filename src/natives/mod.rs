@@ -1,17 +1,44 @@
+macro_rules! na {
+    ($n: ident, $c: expr, $m: expr, $d: expr, $th: ident, $f: ident, $b: block) => {
+        pub struct $n {}
+
+        impl crate::natives::NativeMethod for $n {
+            fn class_name(&self) -> &str {
+                $c
+            }
+
+            fn method_name(&self) -> &str {
+                $m
+            }
+
+            fn desc(&self) -> &str {
+                $d
+            }
+
+            fn exec(
+                &self,
+                $th: &mut crate::runtime::vm::JThread,
+                $f: &mut crate::runtime::vm::JFrame,
+            ) {
+                $b
+            }
+        }
+    };
+}
+
 macro_rules! reg {
-    ($r: expr, $($i: ident),+) => {{
+    ($r: expr, $($i: ident),*) => {{
         $(
             $r.register(std::boxed::Box::new($i {}));
-        )+
+        )*
     }};
 }
 
 mod class;
-mod io;
 mod object;
-mod security;
 mod sun;
 mod system;
+mod thread;
 
 use crate::runtime::vm::{JFrame, JThread};
 use std::collections::BTreeMap;
@@ -40,25 +67,16 @@ impl NativeRegistry {
             data: BTreeMap::new(),
         };
         use crate::natives::class::ClassReg;
-        use crate::natives::io::{FDInitIds, FileISInitIds, FileOSInitIds};
         use crate::natives::object::JLOReg;
-        use crate::natives::security::*;
-        use crate::natives::sun::{ReflectCallerClass, UnsafeReg};
-        use crate::natives::system::{JLSReg, VM};
+        use crate::natives::sun::UnsafeReg;
+        use crate::natives::system::JLSReg;
+        use crate::natives::thread::ThreadReg;
         reg!(
-            r,
-            JLOReg,
-            JLSReg,
-            VM,
-            FileOSInitIds,
-            FileISInitIds,
-            FDInitIds,
-            ReflectCallerClass,
-            UnsafeReg,
-            ACGetCtx,
-            ACDopri,
-            ACDopri2,
-            ClassReg
+            r, JLOReg, JLSReg, ClassReg, ThreadReg,
+            // ReflectCallerClass,
+            UnsafeReg // ACGetCtx,
+                      // ACDopri,
+                      // ACDopri2
         );
         r
     }
