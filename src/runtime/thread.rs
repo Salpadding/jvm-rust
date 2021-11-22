@@ -1,4 +1,5 @@
-use crate::{heap::class::ClassMember, rp::Rp};
+use crate::heap::class::ClassMember;
+use rp::Rp;
 
 pub struct JThread {
     pc: u32,

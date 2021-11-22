@@ -1,7 +1,7 @@
 use crate::ins::Other;
 use crate::op::OpCode;
-use crate::rp::Rp;
 use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
+use rp::Rp;
 
 impl Other for OpCode {
     fn other(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame) {

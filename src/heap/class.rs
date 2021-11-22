@@ -1,9 +1,9 @@
 use crate::attr::AttrInfo;
 use crate::cp::{ClassFile, ConstantPool, MemberInfo};
 use crate::heap::misc::{AccessFlags, SymRef};
-use crate::rp::Rp;
 use crate::runtime::vm::JThread;
-use core::fmt::Debug;
+use rp::Rp;
+use std::fmt::Debug;
 use std::ops::Deref;
 
 use super::desc::MethodDescriptor;
@@ -64,13 +64,18 @@ pub struct Object {
 }
 
 impl Object {
+    pub fn fields(&self) -> &mut [u64] {
+        let p: Rp<u64> = self.data.into();
+        p.as_slice(self.size)
+    }
+
     pub fn extra_class(&self) -> Rp<Class> {
-        let p: u64 = self.get(self.size - 1);
+        let p: u64 = self.fields()[self.size - 1];
         (p as usize).into()
     }
 
     pub fn extra_member(&self) -> Rp<ClassMember> {
-        let p: u64 = self.get(self.size - 1);
+        let p: u64 = self.fields()[self.size - 1];
         (p as usize).into()
     }
 
@@ -91,15 +96,24 @@ impl Object {
         }
     }
 
-    pub fn as_utf8(&self) -> String {
-        let chars: u64 = self.get(0);
-        let chars: Rp<Object> = (chars as usize).into();
-        let mut v = vec![0u16; chars.size];
-        let a: Rp<u16> = chars.data.into();
-        for i in 0..chars.size {
-            v[i] = a[i]
+    pub fn get_field(&self, field: &str) -> u64 {
+        for i in (0..self.class.ins_fields.len()).rev() {
+            if self.class.ins_fields[i].name == field {
+                return self.fields()[i];
+            }
         }
-        String::from_utf16(&v).unwrap()
+        0
+    }
+
+    pub fn jarray<T: 'static>(&self) -> &mut [T] {
+        let p: Rp<T> = self.data.into();
+        p.as_slice(self.size)
+    }
+
+    pub fn jstring(&self) -> String {
+        let arr: Rp<Object> = (self.fields()[0] as usize).into();
+        let data: &[u16] = arr.jarray();
+        String::from_utf16(data).unwrap()
     }
 
     pub fn set<T>(&mut self, i: usize, val: T) {
@@ -298,10 +312,6 @@ impl Class {
         self.static_vars[i] = v;
     }
 
-    pub fn set_instance(&self, obj: &mut Object, i: usize, v: u64) {
-        obj.set(i, v);
-    }
-
     pub fn get_static(&self, i: usize) -> u64 {
         self.static_vars[i]
     }
@@ -387,7 +397,7 @@ impl Class {
     }
 
     pub fn new_obj_size(class: Rp<Class>, size: usize) -> Rp<Object> {
-        let v: Rp<u64> = Rp::alloc(size);
+        let v: Rp<u64> = Rp::new_a(size);
         let obj = Object {
             class: class,
             size: size,

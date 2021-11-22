@@ -1,14 +1,8 @@
-[workspace]
-members = [".", "rp", "cp", "err"]
-
 [package]
-name = "jvm-rust"
+name = "rp"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-mutf8 = "0.5.0"
-zip = "0.5"
-rp = { path = "./rp"}

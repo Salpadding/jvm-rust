@@ -50,6 +50,7 @@ na!(
                 "setProperty",
                 "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;",
                 &args,
+                true,
             )
         }
         f.stack.push_obj(this);
@@ -97,7 +98,7 @@ na!(
     f,
     {
         use crate::heap::class::Object;
-        use crate::rp::Rp;
+        use rp::Rp;
         let src: Rp<Object> = (f.local_vars[0] as usize).into();
         let src_p = f.local_vars[1] as usize;
         let mut dest: Rp<Object> = (f.local_vars[2] as usize).into();

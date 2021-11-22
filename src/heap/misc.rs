@@ -1,11 +1,9 @@
 use std::collections::BTreeMap;
-use std::hash::Hash;
-use std::rc::Rc;
 
 use crate::heap::class::{Class, Object};
 use crate::heap::loader::ClassLoader;
-use crate::rp::Rp;
 use crate::StringErr;
+use rp::Rp;
 
 use super::class::ClassMember;
 
@@ -126,7 +124,7 @@ macro_rules! arr {
     ($c: expr, $t: ty, $sz: expr) => {{
         let o = Object {
             class: $c,
-            data: Rp::<$t>::alloc($sz).ptr(),
+            data: Rp::<$t>::new_a($sz).ptr(),
             size: $sz,
         };
         Rp::new(o)

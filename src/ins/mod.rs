@@ -62,19 +62,19 @@ impl Ins for u8 {
     fn step(self, rd: &mut BytesReader, th: &mut JThread, c: &mut JFrame, wide: bool) {
         let op: OpCode = self.into();
 
-        if c.method.name != "hashCode" && c.method.name != "equals" && c.id > 600 {
-            println!(
-            "op code = {:?} class = {} method = {} desc = {} native = {} pc = {} stack size = {} frame id = {}",
-            op,
-            c.class.name,
-            c.method.name,
-            c.method.desc,
-            c.method.access_flags.is_native(),
-            rd.pc - 1,
-            c.stack.size,
-            c.id,
-        );
-        }
+        // if c.method.name != "hashCode" && c.method.name != "equals" {
+        //     println!(
+        //     "op code = {:?} class = {} method = {} desc = {} native = {} pc = {} stack size = {} frame id = {}",
+        //     op,
+        //     c.class.name,
+        //     c.method.name,
+        //     c.method.desc,
+        //     c.method.access_flags.is_native(),
+        //     rd.pc - 1,
+        //     c.stack.size,
+        //     c.id,
+        // );
+        // }
 
         match self {
             0x00..=0x14 => op.con(rd, th, c),

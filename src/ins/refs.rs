@@ -10,39 +10,16 @@ impl Refs for OpCode {
 
         match self {
             new => {
-                let d = mf.id >= 865;
-                if d {
-                    println!("new")
-                }
                 let i = rd.u16() as usize;
-                if d {
-                    println!("new")
-                }
                 let ptr = {
-                    if d {
-                        println!("new i = {}", i);
-                    }
                     let sym = { mf.class_ref(i) };
-                    if d {
-                        println!("new")
-                    }
                     if sym.class.get_mut().clinit(th) {
-                        if d {
-                            println!("new")
-                        }
                         th.revert_pc();
                         return;
-                    }
-                    if d {
-                        println!("new")
                     }
                     let ptr = Class::new_obj(sym.class);
                     ptr
                 };
-
-                if d {
-                    println!("new")
-                }
                 mf.stack.push_obj(ptr);
             }
             multianewarray => {
@@ -84,9 +61,6 @@ impl Refs for OpCode {
                 } else {
                     mf.method_ref(rd.u16() as usize)
                 };
-                if self == invokevirtual && mf.id > 800 {
-                    println!("invoke virtual {}.{} ", sym.class.name, sym.member.name);
-                }
                 if self == invokeinterface {
                     rd.u16();
                 }
@@ -107,14 +81,10 @@ impl Refs for OpCode {
                         panic!("java.lang.NullPointerException");
                     }
 
-                    if self == invokevirtual && mf.id > 800 {
-                        use crate::heap::class::Object;
-                        use crate::rp::Rp;
-                        let o: Rp<Object> = (mf.stack.slots[0] as usize).into();
-
+                    if self == invokevirtual && mf.id > 790 {
                         println!(
-                            "lookup {}.{} in object {}",
-                            sym.class.name, sym.name, o.class.name
+                            "invoke virtual {}.{} on object {}",
+                            sym.class.name, sym.member.name, obj.class.name
                         );
                     }
                     m = obj.class.lookup_method_in_class(&sym.name, &sym.desc);
@@ -180,7 +150,7 @@ impl Refs for OpCode {
                             putfield => {
                                 let v = mf.stack.pop_u32();
                                 let obj = mf.stack.pop_obj();
-                                class.set_instance(obj.get_mut(), sym.member.id, v as u64);
+                                obj.fields()[sym.member.id] = v as u64;
                             }
                             getfield => {
                                 let obj = mf.stack.pop_obj();
@@ -197,7 +167,7 @@ impl Refs for OpCode {
                             putfield => {
                                 let v = mf.stack.pop_u64();
                                 let obj = mf.stack.pop_obj();
-                                class.set_instance(obj.get_mut(), sym.member.id, v);
+                                obj.fields()[sym.member.id] = v;
                             }
                             getfield => {
                                 let obj = mf.stack.pop_obj();
@@ -213,7 +183,7 @@ impl Refs for OpCode {
                         putfield => {
                             let v = mf.stack.pop_cell();
                             let obj = mf.stack.pop_obj();
-                            class.set_instance(obj.get_mut(), sym.member.id, v);
+                            obj.fields()[sym.member.id] = v;
                         }
                         getfield => {
                             let obj = mf.stack.pop_obj();

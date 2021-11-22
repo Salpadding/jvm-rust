@@ -72,13 +72,13 @@ na!(
 macro_rules! ac {
     ($th: ident, $f: ident) => {{
         let this = $f.this();
-        $f.stack.push_obj(this);
 
         $th.invoke_obj(
             this.get_mut(),
             "run",
             "()Ljava/lang/Object;",
             &[this.ptr() as u64],
+            false,
         );
     }};
 }
@@ -121,8 +121,8 @@ na!(
     f,
     {
         let this = f.this();
-        println!("String.intern {} ", this.as_utf8());
-        let o = f.heap.new_jstr(&this.as_utf8());
+        println!("String.intern {} ", this.jstring());
+        let o = f.heap.new_jstr(&this.jstring());
         f.stack.push_obj(o)
     }
 );

@@ -1,5 +1,5 @@
 use crate::heap::class::Object;
-use crate::rp::Rp;
+use rp::Rp;
 
 pub struct BytesReader<'a> {
     pub bytes: &'a [u8],

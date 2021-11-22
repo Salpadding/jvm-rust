@@ -39,7 +39,8 @@ macro_rules! xaload {
     ($mf: ident, $t: ty, $psh: ident) => {{
         let i = $mf.stack.pop_u32() as usize;
         let obj = $mf.stack.pop_obj();
-        let v: $t = obj.get(i);
+        let a: &[$t] = obj.jarray();
+        let v = a[i];
         $mf.stack.$psh(v);
     }};
 }

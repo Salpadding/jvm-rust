@@ -40,7 +40,7 @@ macro_rules! xastore {
         let v = $mf.stack.$p();
         let i = $mf.stack.pop_u32() as usize;
         let mut obj = $mf.stack.pop_obj();
-        obj.set(i, v);
+        obj.jarray()[i] = v;
     }};
 }
 

@@ -1,4 +1,4 @@
-use std::{
+use core::{
     fmt::Debug,
     marker::PhantomData,
     ops::{Deref, DerefMut},
@@ -12,11 +12,11 @@ pub struct Rp<T> {
 }
 
 impl<T: Debug> Debug for Rp<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         if self.is_null() {
             f.write_str("NULL")
         } else {
-            write!(f, "{:?}", self.as_ref())
+            core::fmt::Debug::fmt(self.as_ref(), f)
         }
     }
 }
@@ -63,7 +63,7 @@ impl<T> AsRef<T> for Rp<T> {
 }
 
 // index operation for memory allocated by Rp::alloc
-impl<T> std::ops::Index<usize> for Rp<T> {
+impl<T> core::ops::Index<usize> for Rp<T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -72,7 +72,7 @@ impl<T> std::ops::Index<usize> for Rp<T> {
 }
 
 // index operation for memory allocated by Rp::alloc
-impl<T> std::ops::IndexMut<usize> for Rp<T> {
+impl<T> core::ops::IndexMut<usize> for Rp<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         unsafe { &mut *(self.ptr as *mut T).add(index) }
     }
@@ -186,7 +186,7 @@ impl<T> Rp<T> {
             return;
         }
         let b = unsafe { Box::from_raw(self.ptr as *mut T) };
-        std::mem::drop(b);
+        core::mem::drop(b);
         self.ptr = 0usize;
     }
 
@@ -194,36 +194,43 @@ impl<T> Rp<T> {
     pub fn ptr(&self) -> usize {
         self.ptr
     }
+
+    #[inline]
+    pub fn as_slice(&self, len: usize) -> &'static mut [T] {
+        unsafe { core::slice::from_raw_parts_mut(self.raw(), len) }
+    }
 }
 
-impl<T: Clone + Default> Rp<T> {
+impl<T> From<Vec<T>> for Rp<T> {
     #[inline]
-    pub fn from_vec(b: Vec<T>) -> Self {
-        let p = b.as_ptr() as usize;
-        std::mem::forget(b);
+    fn from(v: Vec<T>) -> Self {
+        let p = v.as_ptr() as usize;
+        core::mem::forget(v);
         Self {
             ptr: p,
             p: PhantomData,
         }
     }
+}
+
+impl<T: Clone + Default> Rp<T> {
     // alloc a continous memory to store n struct T
-    pub fn alloc(num: usize) -> Self {
+    pub fn new_a(num: usize) -> Self {
         let b: Vec<T> = vec![T::default(); num];
-        Self::from_vec(b)
+        b.into()
     }
 
     // free a continous memory
-    pub fn free(&mut self, num: usize) {
+    pub fn drop_a(&mut self, num: usize) {
         let b = unsafe { Vec::from_raw_parts(self.ptr as *mut T, num, num) };
         self.ptr = 0;
-        std::mem::drop(b);
+        core::mem::drop(b);
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::Rp;
-    use core::convert::AsRef;
 
     #[derive(Debug, Default, Clone)]
     pub struct Point {
@@ -231,19 +238,16 @@ mod test {
         pub y: f64,
     }
 
+    #[test]
     fn main() {
         let size = 10usize;
         // new an array on heap
-        let mut p: Rp<Point> = Rp::alloc(size);
+        let mut p: Rp<Point> = Rp::new_a(size);
 
         init_points(p, size);
 
-        for i in 0..size {
-            println!("{:?}", p[i]);
-        }
-
         // free the memory, and p becomes null pointer
-        p.free(size);
+        p.drop_a(size);
     }
 
     fn init_points(mut p: Rp<Point>, len: usize) {

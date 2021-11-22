@@ -3,8 +3,8 @@ use crate::entry;
 use crate::entry::Entry;
 use crate::heap::class::Class;
 use crate::heap::desc::DescriptorParser;
-use crate::rp::Rp;
 use crate::StringErr;
+use rp::Rp;
 use std::collections::BTreeMap;
 
 use super::class::ClassMember;
@@ -131,10 +131,6 @@ impl ClassLoader {
         } else {
             m.m_desc.arg_cells + 1
         };
-
-        if m.name == "getCallerClass" {
-            println!("desc.ret = {:?} desc = {}", m.m_desc.ret, m.desc);
-        }
 
         use crate::heap::desc::JType;
         match &m.m_desc.ret {

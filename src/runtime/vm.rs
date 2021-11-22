@@ -1,8 +1,8 @@
 use crate::heap::{class::Class, class::ClassMember, class::Object, misc::Heap, misc::SymRef};
 use crate::natives::NativeRegistry;
-use crate::rp::Rp;
 use crate::runtime::misc::{BytesReader, OpStack};
 use crate::StringErr;
+use rp::Rp;
 const MAX_JSTACK_SIZE: usize = 1024;
 
 // jvm runtime representation
@@ -109,19 +109,8 @@ impl JThread {
     }
 
     pub fn new_frame(&self, m: Rp<ClassMember>) -> JFrame {
-        if m.name == "searchFields" && m.class.name == "java/lang/Class" {
-            let bk = self.cur_frame().stack.back_obj(1);
-            println!(
-                "search field {}",
-                if bk.is_null() {
-                    "null".to_string()
-                } else {
-                    bk.as_utf8()
-                }
-            );
-        }
         let id = *self.frame_id;
-        println!("create frame {}.{} id = {}", m.class.name, m.name, id);
+        // println!("create frame {}.{} id = {}", m.class.name, m.name, id);
         (*self.frame_id.get_mut()) = id + 1;
         JFrame::new(id, self.heap, self.registry, m)
     }
@@ -183,10 +172,17 @@ impl JThread {
     }
 
     // create a new thread to invoke object
-    pub fn invoke_obj(&mut self, obj: &mut Object, name: &str, desc: &str, args: &[u64]) {
+    pub fn invoke_obj(
+        &mut self,
+        obj: &mut Object,
+        name: &str,
+        desc: &str,
+        args: &[u64],
+        drop: bool,
+    ) {
         let m = obj.class.lookup_method(name, desc);
         let mut nf = self.new_frame(m);
-        nf.drop = true;
+        nf.drop = drop;
         nf.local_vars.copy_from_slice(args);
         self.stack.push_frame(nf);
     }

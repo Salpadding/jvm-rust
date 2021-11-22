@@ -40,7 +40,6 @@ mod heap;
 mod ins;
 mod natives;
 mod op;
-mod rp;
 mod runtime;
 mod utils;
 
@@ -54,7 +53,7 @@ fn main() {
 
     let args: Vec<String> = std::env::args().collect();
     let mut jvm = Jvm::new(&cp).unwrap();
-    jvm.run_class(&args[1]).unwrap();
+    jvm.init();
 }
 
 #[cfg(test)]

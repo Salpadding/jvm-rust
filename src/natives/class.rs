@@ -18,7 +18,7 @@ na!(
     th,
     f,
     {
-        let s = f.this().as_utf8();
+        let s = f.this().jstring();
         let mut cl = f.heap.loader.load(&s);
 
         if cl.clinit(th) {
@@ -63,9 +63,9 @@ na!(
     f,
     {
         use crate::heap::class::Object;
-        use crate::rp::Rp;
+        use rp::Rp;
         let js: Rp<Object> = (f.local_vars[0] as usize).into();
-        let n = js.as_utf8();
+        let n = js.jstring();
         let cl = f.heap.loader.load(&n);
         f.stack.push_obj(cl.j_class)
     }
@@ -80,7 +80,7 @@ na!(
     f,
     {
         use crate::heap::class::ClassMember;
-        use crate::rp::Rp;
+        use rp::Rp;
 
         let jclass = f.this();
         let pub_only = f.local_vars[1] != 0;
@@ -104,7 +104,7 @@ na!(
         }
 
         for i in 0..fields.len() {
-            let mut o = Class::new_obj(field_class);
+            let mut o = Class::new_obj_size(field_class, field_class.ins_fields.len() + 1);
             let p = o.ptr() as u64;
 
             // call init method of Field Constructor
@@ -113,6 +113,7 @@ na!(
             o.set_field_ref("name", f.heap.new_jstr(&fields[i].name));
             o.set_field("slot", fields[i].id as u64);
             o.set_field("modifiers", fields[i].access_flags.0 as u64);
+            o.fields()[o.fields().len() - 1] = fields[i].ptr() as u64;
             field_arr.set(i, p);
         }
     }
