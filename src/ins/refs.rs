@@ -2,7 +2,7 @@ use crate::heap::class::Class;
 use crate::heap::desc::JTypeDescriptor;
 use crate::ins::Refs;
 use crate::op::OpCode;
-use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
+use crate::runtime::{frame::JFrame, misc::BytesReader, vm::JThread};
 
 impl Refs for OpCode {
     fn refs(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame) {
@@ -20,15 +20,14 @@ impl Refs for OpCode {
                     let ptr = Class::new_obj(sym.class);
                     ptr
                 };
-                mf.stack.push_obj(ptr);
+                mf.push_obj(ptr);
             }
             multianewarray => {
                 let a_class = mf.class_ref(rd.u16() as usize);
                 let dim = rd.u8() as usize;
-                let counts = &mf.stack.slots[mf.stack.size - dim..mf.stack.size];
-                mf.stack.size -= dim;
+                let counts = mf.pop_slots(dim);
                 let arr = mf.heap.new_multi_dim(a_class.class, counts);
-                mf.stack.push_obj(arr)
+                mf.push_obj(arr)
             }
             newarray | anewarray => {
                 let atype = if self == newarray {
@@ -36,7 +35,7 @@ impl Refs for OpCode {
                 } else {
                     rd.u16() as usize
                 };
-                let n = mf.stack.pop_i32() as i32;
+                let n = mf.pop_i32() as i32;
 
                 if n < 0 {
                     panic!("java.lang.NegativeArraySize");
@@ -44,16 +43,16 @@ impl Refs for OpCode {
 
                 if self == newarray {
                     let arr = mf.heap.new_primitive_array((atype - 4) as i32, n as usize);
-                    mf.stack.push_obj(arr);
+                    mf.push_obj(arr);
                 } else {
                     let c = mf.class_ref(atype).class;
                     let arr = mf.heap.new_array(&c.name, n as usize);
-                    mf.stack.push_obj(arr);
+                    mf.push_obj(arr);
                 };
             }
             arraylength => {
-                let obj = mf.stack.pop_obj();
-                mf.stack.push_u32(obj.size as u32);
+                let obj = mf.pop_obj();
+                mf.push_u32(obj.size as u32);
             }
             invokestatic | invokespecial | invokevirtual | invokeinterface => {
                 let sym = if self == invokeinterface {
@@ -76,7 +75,7 @@ impl Refs for OpCode {
 
                 // invoke virtual, resolve method in object class
                 if self == invokevirtual || self == invokeinterface {
-                    let obj = mf.stack.back_obj(sym.member.m_desc.arg_cells + 1);
+                    let obj = mf.back_obj(sym.member.m_desc.arg_cells + 1);
                     if obj.is_null() {
                         panic!("java.lang.NullPointerException");
                     }
@@ -105,7 +104,7 @@ impl Refs for OpCode {
             instanceof | checkcast => {
                 let i = rd.u16() as usize;
                 let sym = mf.class_ref(i);
-                let o = mf.stack.pop_obj();
+                let o = mf.pop_obj();
 
                 let is = if o.is_null() {
                     false
@@ -114,7 +113,7 @@ impl Refs for OpCode {
                 };
 
                 if self == instanceof {
-                    mf.stack.push_u32(if is { 1 } else { 0 });
+                    mf.push_u32(if is { 1 } else { 0 });
                     return;
                 }
 
@@ -127,7 +126,7 @@ impl Refs for OpCode {
                     // panic!("cannot cast object {} to {}", o, sym.name);
                 }
 
-                mf.stack.push_obj(o);
+                mf.push_obj(o);
             }
             putstatic | getstatic | putfield | getfield => {
                 let i = rd.u16() as usize;
@@ -145,57 +144,57 @@ impl Refs for OpCode {
                 match sym.desc.slots() {
                     1 => {
                         match self {
-                            putstatic => class.set_static(sym.member.id, mf.stack.pop_u32() as u64),
-                            getstatic => mf.stack.push_u32(class.get_static(sym.member.id) as u32),
+                            putstatic => class.set_static(sym.member.id, mf.pop_u32() as u64),
+                            getstatic => mf.push_u32(class.get_static(sym.member.id) as u32),
                             putfield => {
-                                let v = mf.stack.pop_u32();
-                                let obj = mf.stack.pop_obj();
+                                let v = mf.pop_u32();
+                                let obj = mf.pop_obj();
                                 obj.fields()[sym.member.id] = v as u64;
                             }
                             getfield => {
-                                let obj = mf.stack.pop_obj();
+                                let obj = mf.pop_obj();
                                 let v = class.get_instance(&obj, sym.member.id);
-                                mf.stack.push_u32(v as u32);
+                                mf.push_u32(v as u32);
                             }
                             _ => {}
                         };
                     }
                     2 => {
                         match self {
-                            putstatic => class.set_static(sym.member.id, mf.stack.pop_u64() as u64),
-                            getstatic => mf.stack.push_u64(class.get_static(sym.member.id)),
+                            putstatic => class.set_static(sym.member.id, mf.pop_u64() as u64),
+                            getstatic => mf.push_u64(class.get_static(sym.member.id)),
                             putfield => {
-                                let v = mf.stack.pop_u64();
-                                let obj = mf.stack.pop_obj();
+                                let v = mf.pop_u64();
+                                let obj = mf.pop_obj();
                                 obj.fields()[sym.member.id] = v;
                             }
                             getfield => {
-                                let obj = mf.stack.pop_obj();
+                                let obj = mf.pop_obj();
                                 let v = class.get_instance(&obj, sym.member.id);
-                                mf.stack.push_u64(v);
+                                mf.push_u64(v);
                             }
                             _ => {}
                         };
                     }
                     _ => match self {
-                        putstatic => class.set_static(sym.member.id, mf.stack.pop_cell()),
-                        getstatic => mf.stack.push_cell(class.get_static(sym.member.id)),
+                        putstatic => class.set_static(sym.member.id, mf.pop_slot()),
+                        getstatic => mf.push_slot(class.get_static(sym.member.id)),
                         putfield => {
-                            let v = mf.stack.pop_cell();
-                            let obj = mf.stack.pop_obj();
+                            let v = mf.pop_slot();
+                            let obj = mf.pop_obj();
                             obj.fields()[sym.member.id] = v;
                         }
                         getfield => {
-                            let obj = mf.stack.pop_obj();
+                            let obj = mf.pop_obj();
                             let v = class.get_instance(&obj, sym.member.id);
-                            mf.stack.push_cell(v);
+                            mf.push_slot(v);
                         }
                         _ => {}
                     },
                 }
             }
             monitorenter | monitorexit => {
-                mf.stack.pop_cell();
+                mf.pop_slot();
             }
             _ => {
                 panic!("invalid op {:?}", self);

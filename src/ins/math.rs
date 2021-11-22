@@ -1,13 +1,13 @@
 use crate::ins::Math;
 use crate::op::OpCode;
-use crate::runtime::misc::Slots;
-use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
+use crate::runtime::frame::Slots;
+use crate::runtime::{frame::JFrame, misc::BytesReader, vm::JThread};
 
 macro_rules! b_op {
     ($mf: ident, $p: ident, $psh: ident, $f: ident) => {{
-        let (v2, v1) = { ($mf.stack.$p(), $mf.stack.$p()) };
+        let (v2, v1) = { ($mf.$p(), $mf.$p()) };
 
-        $mf.stack.$psh(v1.$f(v2));
+        $mf.$psh(v1.$f(v2));
     }};
 }
 
@@ -49,16 +49,16 @@ macro_rules! b_f64 {
 
 macro_rules! u_op {
     ($mf: ident, $pp: ident, $psh: ident, $f: ident) => {{
-        let v = $mf.stack.$pp();
-        $mf.stack.$psh(v.$f());
+        let v = $mf.$pp();
+        $mf.$psh(v.$f());
     }};
 }
 
 macro_rules! sh {
     ($mf: ident, $p: ident, $psh: ident, $f: ident, $m: expr) => {{
-        let (v2, v1) = { ($mf.stack.pop_u32(), $mf.stack.$p()) };
+        let (v2, v1) = { ($mf.pop_u32(), $mf.$p()) };
 
-        $mf.stack.$psh(v1.$f(v2 & $m));
+        $mf.$psh(v1.$f(v2 & $m));
     }};
 }
 
@@ -119,8 +119,8 @@ impl Math for OpCode {
                         },
                     )
                 };
-                let v = { mf.local_vars.get_i32(i) };
-                mf.local_vars.set_i32(i, v + c);
+                let v = { mf.local_vars().get_i32(i) };
+                mf.local_vars().set_i32(i, v + c);
             }
             _ => panic!("invalid op {:?}", self),
         };

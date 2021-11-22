@@ -21,7 +21,7 @@ na!(
     "(Ljava/lang/Class;)I",
     th,
     f,
-    { f.stack.push_u32(0) }
+    { f.push_u32(0) }
 );
 
 na!(
@@ -31,11 +31,11 @@ na!(
     "(Ljava/lang/Class;)I",
     th,
     f,
-    { f.stack.push_u32(0) }
+    { f.push_u32(0) }
 );
 
 na!(N2, "sun/misc/Unsafe", "addressSize", "()I", th, f, {
-    f.stack.push_u32(size_of::<usize>() as u32)
+    f.push_u32(size_of::<usize>() as u32)
 });
 
 na!(
@@ -46,9 +46,9 @@ na!(
     th,
     f,
     {
-        let field: Rp<Object> = (f.local_vars[1] as usize).into();
+        let field: Rp<Object> = (f.local_vars()[1] as usize).into();
         let slot = field.get_field("slot");
-        f.stack.push_u64(slot)
+        f.push_u64(slot)
     }
 );
 

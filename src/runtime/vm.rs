@@ -1,6 +1,9 @@
+use std::ops::Add;
+
 use crate::heap::{class::Class, class::ClassMember, class::Object, misc::Heap, misc::SymRef};
 use crate::natives::NativeRegistry;
-use crate::runtime::misc::{BytesReader, OpStack};
+use crate::runtime::frame::JFrame;
+use crate::runtime::misc::BytesReader;
 use err::StringErr;
 use rp::Rp;
 const MAX_JSTACK_SIZE: usize = 1024;
@@ -54,17 +57,17 @@ impl Jvm {
 }
 
 pub struct JThread {
-    pc: i32,
+    pc: u32,
     stack: JStack,
-    next_pc: Option<i32>,
+    next_pc: Option<u32>,
     pub heap: Rp<Heap>,
     pub registry: Rp<NativeRegistry>,
-    pub frame_id: Rp<i32>,
+    pub frame_id: Rp<u32>,
 }
 
 impl JThread {
     pub fn branch(&mut self, off: i32) {
-        self.next_pc = Some(self.pc + off);
+        self.next_pc = Some((self.pc as i32 + off) as u32);
     }
 
     pub fn revert_pc(&mut self) {
@@ -112,7 +115,7 @@ impl JThread {
         let id = *self.frame_id;
         // println!("create frame {}.{} id = {}", m.class.name, m.name, id);
         (*self.frame_id.get_mut()) = id + 1;
-        JFrame::new(id, self.heap, self.registry, m)
+        self.stack.new_frame(id as u16, self.heap, m)
     }
 
     #[inline]
@@ -183,7 +186,7 @@ impl JThread {
         let m = obj.class.lookup_method(name, desc);
         let mut nf = self.new_frame(m);
         nf.drop = drop;
-        nf.local_vars.copy_from_slice(args);
+        nf.local_vars().copy_from_slice(args);
         self.stack.push_frame(nf);
     }
 }
@@ -191,6 +194,8 @@ impl JThread {
 // TODO: limit stack size
 pub struct JStack {
     frames: [Option<JFrame>; MAX_JSTACK_SIZE],
+    // default stack size = 64k = 64 * 1024
+    stack_data: Vec<u64>,
     size: usize,
 }
 
@@ -200,11 +205,30 @@ impl JStack {
         Self {
             frames: [init; MAX_JSTACK_SIZE],
             size: 0,
+            stack_data: vec![0; 64 * 1024 / 8],
         }
     }
 
+    fn new_frame(&self, id: u16, heap: Rp<Heap>, m: Rp<ClassMember>) -> JFrame {
+        let mut f = JFrame::new(id, heap, m);
+
+        // TODO: use realloc to allocate memory
+        // assign stack base
+        // new stack base = prev stack base + prev max stack
+        let new_base: Rp<u64> = if self.is_empty() {
+            self.stack_data.as_ptr().into()
+        } else {
+            let cur = self.cur_frame();
+            unsafe { cur.stack_base.raw().add(cur.max_stack()).into() }
+        };
+
+        f.local_base = new_base;
+        f.stack_base = unsafe { f.local_base.raw().add(f.max_locals()).into() };
+        f
+    }
+
     #[inline]
-    fn push_frame(&mut self, frame: JFrame) {
+    fn push_frame(&mut self, mut frame: JFrame) {
         self.frames[self.size] = Some(frame);
         self.size += 1;
     }
@@ -232,63 +256,6 @@ impl JStack {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.size == 0
-    }
-}
-
-#[derive(Default, Clone)]
-pub struct JFrame {
-    pub local_vars: Vec<u64>,
-    pub stack: OpStack,
-    pub method: Rp<ClassMember>,
-    pub class: Rp<Class>,
-    pub heap: Rp<Heap>,
-    pub registry: Rp<NativeRegistry>,
-    next_pc: i32,
-    pub id: i32,
-    pub drop: bool,
-}
-
-macro_rules! xx_ref {
-    ($f: ident) => {
-        pub fn $f(&mut self, i: usize) -> Rp<SymRef> {
-            let mut cur = self.class.get_mut();
-            let sym = { self.heap.$f(&mut cur, i) };
-            sym
-        }
-    };
-}
-
-impl JFrame {
-    pub fn this(&self) -> Rp<Object> {
-        (self.local_vars[0] as usize).into()
-    }
-
-    fn new(id: i32, heap: Rp<Heap>, registry: Rp<NativeRegistry>, method: Rp<ClassMember>) -> Self {
-        Self {
-            local_vars: vec![0u64; method.max_locals],
-            stack: OpStack {
-                slots: vec![0u64; method.max_stack],
-                size: 0,
-            },
-            method,
-            registry,
-            class: method.class,
-            heap,
-            next_pc: 0,
-            id,
-            drop: false,
-        }
-    }
-
-    xx_ref!(class_ref);
-    xx_ref!(field_ref);
-    xx_ref!(method_ref);
-    xx_ref!(iface_ref);
-
-    pub fn pass_args(&mut self, other: &mut JFrame, arg_cells: usize) {
-        let stack_data = &self.stack.slots[self.stack.size - arg_cells..self.stack.size];
-        other.local_vars[..arg_cells].copy_from_slice(stack_data);
-        self.stack.size -= arg_cells;
     }
 }
 

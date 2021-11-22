@@ -5,7 +5,7 @@ import test.Debug;
 public class FibonacciTest {
     public static void main(String[] args) {
         long x = fibonacci(30);
-        Debug.println(Long.valueOf(x).toString());
+        Debug.println(x);
     }
 
     private static long fibonacci(long n) {

@@ -23,7 +23,7 @@ na!(
     th,
     f,
     {
-        reg!(f.registry, N0, N1, VM);
+        reg!(th.registry, N0, N1, VM);
     }
 );
 
@@ -53,7 +53,7 @@ na!(
                 true,
             )
         }
-        f.stack.push_obj(this);
+        f.push_obj(this);
     }
 );
 
@@ -99,11 +99,11 @@ na!(
     {
         use crate::heap::class::Object;
         use rp::Rp;
-        let src: Rp<Object> = (f.local_vars[0] as usize).into();
-        let src_p = f.local_vars[1] as usize;
-        let mut dest: Rp<Object> = (f.local_vars[2] as usize).into();
-        let dest_p = f.local_vars[3] as usize;
-        let len = f.local_vars[4] as usize;
+        let src: Rp<Object> = (f.local_vars()[0] as usize).into();
+        let src_p = f.local_vars()[1] as usize;
+        let mut dest: Rp<Object> = (f.local_vars()[2] as usize).into();
+        let dest_p = f.local_vars()[3] as usize;
+        let len = f.local_vars()[4] as usize;
 
         println!(
             "system array copy start {} {} {} {}",

@@ -1,6 +1,6 @@
 use crate::ins::Load;
 use crate::op::OpCode;
-use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
+use crate::runtime::{frame::JFrame, misc::BytesReader, vm::JThread};
 
 macro_rules! xload {
     ($rd: ident, $mf: ident, $gt: ident, $pt: ident, $wd: expr) => {{
@@ -9,51 +9,51 @@ macro_rules! xload {
         } else {
             $rd.u8() as usize
         };
-        let v = { $mf.local_vars.$gt(i) };
-        $mf.stack.$pt(v);
+        let v = { $mf.local_vars().$gt(i) };
+        $mf.$pt(v);
     }};
 }
 
 macro_rules! iload_n {
     ($mf: ident, $n: expr) => {{
-        let v = { $mf.local_vars.get_u32($n) };
-        $mf.stack.push_u32(v);
+        let v = { $mf.local_vars().get_u32($n) };
+        $mf.push_u32(v);
     }};
 }
 
 macro_rules! aload_n {
     ($mf: ident, $n: expr) => {{
-        let v = { $mf.local_vars.get_cell($n) };
-        $mf.stack.push_cell(v);
+        let v = { $mf.local_vars().get_slot($n) };
+        $mf.push_slot(v);
     }};
 }
 
 macro_rules! lload_n {
     ($mf: ident, $n: expr) => {{
-        let v = { $mf.local_vars.get_u64($n) };
-        $mf.stack.push_u64(v);
+        let v = { $mf.local_vars().get_u64($n) };
+        $mf.push_u64(v);
     }};
 }
 
 macro_rules! xaload {
     ($mf: ident, $t: ty, $psh: ident) => {{
-        let i = $mf.stack.pop_u32() as usize;
-        let obj = $mf.stack.pop_obj();
+        let i = $mf.pop_u32() as usize;
+        let obj = $mf.pop_obj();
         let a: &[$t] = obj.jarray();
         let v = a[i];
-        $mf.stack.$psh(v);
+        $mf.$psh(v);
     }};
 }
 
 impl Load for OpCode {
     fn load(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame, w: bool) {
         use crate::op::OpCode::*;
-        use crate::runtime::misc::Slots;
+        use crate::runtime::frame::Slots;
 
         match self {
             iload | fload => xload!(rd, mf, get_u32, push_u32, w),
             lload | dload => xload!(rd, mf, get_u64, push_u64, w),
-            aload => xload!(rd, mf, get_cell, push_cell, w),
+            aload => xload!(rd, mf, get_slot, push_slot, w),
 
             iload_0 | fload_0 => iload_n!(mf, 0),
             iload_1 | fload_1 => iload_n!(mf, 1),
@@ -73,7 +73,7 @@ impl Load for OpCode {
             iaload | faload => xaload!(mf, u32, push_u32),
             daload | laload => xaload!(mf, u64, push_u64),
             saload | caload => xaload!(mf, u16, push_u16),
-            aaload => xaload!(mf, u64, push_cell),
+            aaload => xaload!(mf, u64, push_slot),
             baload => xaload!(mf, u8, push_u8),
             _ => panic!("invalid op {:?}", self),
         };

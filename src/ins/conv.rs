@@ -1,20 +1,20 @@
 use crate::ins::Conversion;
 use crate::op::OpCode;
-use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
+use crate::runtime::{frame::JFrame, misc::BytesReader, vm::JThread};
 
 macro_rules! cv {
     ($mf: ident, $p: ident, $psh: ident, $t: ty) => {{
-        let v = $mf.stack.$p();
+        let v = $mf.$p();
         let c = v as $t;
-        $mf.stack.$psh(c);
+        $mf.$psh(c);
     }};
 }
 
 macro_rules! i2x {
     ($mf: ident, $t: ty) => {{
-        let v = $mf.stack.pop_i32();
+        let v = $mf.pop_i32();
         let c = v as $t;
-        $mf.stack.push_i32(c as $t as i32);
+        $mf.push_i32(c as $t as i32);
     }};
 }
 

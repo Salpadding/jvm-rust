@@ -1,3 +1,3 @@
+pub mod frame;
 pub mod misc;
-pub mod thread;
 pub mod vm;

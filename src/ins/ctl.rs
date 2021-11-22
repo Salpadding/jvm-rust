@@ -1,6 +1,6 @@
 use crate::ins::Control;
 use crate::op::OpCode;
-use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
+use crate::runtime::{frame::JFrame, misc::BytesReader, vm::JThread};
 
 #[derive(Debug, Default)]
 struct TableSwitch {
@@ -23,7 +23,7 @@ impl TableSwitch {
     }
 
     fn exec(&self, th: &mut JThread, rd: &mut BytesReader, mf: &mut JFrame) {
-        let i = mf.stack.pop_i32();
+        let i = mf.pop_i32();
 
         let off = if i >= self.low && i <= self.high {
             self.jumps[(i - self.low) as usize] as i32
@@ -53,7 +53,7 @@ impl LookupSwitch {
     }
 
     fn exec(&self, th: &mut JThread, rd: &mut BytesReader, mf: &mut JFrame) {
-        let k = mf.stack.pop_i32();
+        let k = mf.pop_i32();
         let mut i = 0i32;
 
         while i < self.n * 2 {
@@ -98,39 +98,30 @@ impl Control for OpCode {
 
                 if mf.method.name == "equals"
                     && mf.method.desc == "(Ljava/lang/Object;)Z"
-                    && mf.class.name == "java/lang/String"
+                    && mf.class().name == "java/lang/String"
                 {
                     println!("compare string {} to other", mf.this().jstring());
                     use crate::heap::class::Object;
                     use rp::Rp;
-                    let other: Rp<Object> = (mf.local_vars[1] as usize).into();
-
-                    if !other.is_null() && other.class.name == "java/lang/String" {
-                        println!(
-                            "{} = {} returns {}",
-                            mf.this().jstring(),
-                            other.jstring(),
-                            mf.stack.slots[mf.stack.size - 1]
-                        )
-                    };
+                    let other: Rp<Object> = (mf.local_vars()[1] as usize).into();
                 }
 
                 if s == ireturn || self == freturn {
-                    let c = mf.stack.pop_u32();
-                    th.prev_frame().stack.push_u32(c)
+                    let c = mf.pop_u32();
+                    th.prev_frame().push_u32(c)
                 }
 
                 if s == lreturn || self == dreturn {
-                    let c = mf.stack.pop_u64();
-                    th.prev_frame().stack.push_u64(c)
+                    let c = mf.pop_u64();
+                    th.prev_frame().push_u64(c)
                 }
 
                 if s == areturn {
-                    let c = mf.stack.pop_cell();
+                    let c = mf.pop_slot();
                     if c == 0 {
                         println!("areturn returns a null")
                     }
-                    th.prev_frame().stack.push_cell(c)
+                    th.prev_frame().push_slot(c)
                 }
                 // println!(
                 //     "exit frame {}.{} id = {}",

@@ -1,6 +1,6 @@
 use crate::ins::Other;
 use crate::op::OpCode;
-use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
+use crate::runtime::{frame::JFrame, misc::BytesReader, vm::JThread};
 use rp::Rp;
 
 impl Other for OpCode {
@@ -11,7 +11,7 @@ impl Other for OpCode {
             impdep1 => {
                 let p: Rp<JThread> = th.into();
                 let w = th.registry.find(
-                    mf.class.name.as_str(),
+                    mf.class().name.as_str(),
                     mf.method.name.as_str(),
                     mf.method.desc.as_str(),
                 );

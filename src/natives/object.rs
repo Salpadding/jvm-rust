@@ -1,4 +1,4 @@
-use crate::runtime::misc::Slots;
+use crate::runtime::frame::Slots;
 
 na!(
     JLOReg,
@@ -8,7 +8,23 @@ na!(
     th,
     f,
     {
-        reg!(f.registry, N0, N1, N2, N3, N4, N5, N6, N7, N8, N9, N10, N11, N12, N13);
+        reg!(
+            th.registry,
+            N0,
+            N1,
+            N2,
+            N3,
+            N4,
+            N5,
+            N6,
+            N7,
+            N8,
+            N9,
+            N10,
+            N11,
+            N12,
+            N13
+        );
     }
 );
 
@@ -21,17 +37,17 @@ na!(
     f,
     {
         let ths = f.this();
-        f.stack.push_obj(ths.class.j_class);
+        f.push_obj(ths.class.j_class);
     }
 );
 
 na!(N1, "java/lang/Object", "hashCode", "()I", th, f, {
     let ths = f.this();
-    f.stack.push_u32(ths.ptr() as u32)
+    f.push_u32(ths.ptr() as u32)
 });
 
 na!(N2, "java/lang/Float", "floatToRawIntBits", "(F)I", th, f, {
-    f.stack.push_u32(f.local_vars[0] as u32)
+    f.push_u32(f.local_vars()[0] as u32)
 });
 
 na!(
@@ -41,18 +57,18 @@ na!(
     "(D)J",
     th,
     f,
-    { f.stack.push_u64(f.local_vars.get_u64(0)) }
+    { f.push_u64(f.local_vars().get_u64(0)) }
 );
 
 na!(N4, "java/lang/Double", "longBitsToDouble", "(J)D", th, f, {
-    f.stack.push_u64(f.local_vars.get_u64(0))
+    f.push_u64(f.local_vars().get_u64(0))
 });
 
 na!(N5, "java/io/FileOutputStream", "initIDs", "()V", th, f, {});
 na!(N6, "java/io/FileInputStream", "initIDs", "()V", th, f, {});
 na!(N7, "java/io/FileDescriptor", "initIDs", "()V", th, f, {});
 na!(N8, "java/io/FileDescriptor", "set", "(I)J", th, f, {
-    f.stack.push_u64(f.local_vars[0]);
+    f.push_u64(f.local_vars()[0]);
 });
 
 na!(
@@ -64,8 +80,8 @@ na!(
     f,
     {
         let caller_frame = th.back_frame(3);
-        let caller_class = caller_frame.class.j_class;
-        f.stack.push_obj(caller_class)
+        let caller_class = caller_frame.class().j_class;
+        f.push_obj(caller_class)
     }
 );
 
@@ -109,7 +125,7 @@ na!(
     "()Ljava/security/AccessControlContext;",
     th,
     f,
-    { f.stack.push_null() }
+    { f.push_null() }
 );
 
 na!(
@@ -123,6 +139,6 @@ na!(
         let this = f.this();
         println!("String.intern {} ", this.jstring());
         let o = f.heap.new_jstr(&this.jstring());
-        f.stack.push_obj(o)
+        f.push_obj(o)
     }
 );

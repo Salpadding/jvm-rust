@@ -9,10 +9,8 @@ mod refs;
 mod stack;
 mod store;
 
-use std::io::Write;
-
 use crate::op::OpCode;
-use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
+use crate::runtime::{frame::JFrame, misc::BytesReader, vm::JThread};
 
 trait Constant {
     fn con(self, rd: &mut BytesReader, th: &mut JThread, frame: &mut JFrame);
@@ -62,16 +60,17 @@ impl Ins for u8 {
     fn step(self, rd: &mut BytesReader, th: &mut JThread, c: &mut JFrame, wide: bool) {
         let op: OpCode = self.into();
 
-        // if c.method.name != "hashCode" && c.method.name != "equals" {
+        // if c.method.name != "hashCode" && c.method.name != "equals"
+        // {
         //     println!(
         //     "op code = {:?} class = {} method = {} desc = {} native = {} pc = {} stack size = {} frame id = {}",
         //     op,
-        //     c.class.name,
+        //     c.class().name,
         //     c.method.name,
         //     c.method.desc,
         //     c.method.access_flags.is_native(),
         //     rd.pc - 1,
-        //     c.stack.size,
+        //     c.stack_size,
         //     c.id,
         // );
         // }

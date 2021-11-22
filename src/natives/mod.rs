@@ -18,7 +18,7 @@ macro_rules! na {
             fn exec(
                 &self,
                 $th: &mut crate::runtime::vm::JThread,
-                $f: &mut crate::runtime::vm::JFrame,
+                $f: &mut crate::runtime::frame::JFrame,
             ) {
                 $b
             }
@@ -41,7 +41,8 @@ mod sun;
 mod system;
 mod thread;
 
-use crate::runtime::vm::{JFrame, JThread};
+use crate::runtime::frame::JFrame;
+use crate::runtime::vm::JThread;
 use std::collections::BTreeMap;
 
 use crate::heap::desc::{DescriptorParser, MethodDescriptor};

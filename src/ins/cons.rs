@@ -1,6 +1,6 @@
 use crate::ins::Constant;
 use crate::op::OpCode;
-use crate::runtime::{misc::BytesReader, vm::JFrame, vm::JThread};
+use crate::runtime::{frame::JFrame, misc::BytesReader, vm::JThread};
 
 trait Ldc {
     fn _ldc(self, rd: &mut BytesReader, f: &mut JFrame);
@@ -14,28 +14,31 @@ impl Ldc for OpCode {
             _ => rd.u16() as usize,
         };
 
-        let c = f.class.cp.constant(i);
+        let clazz = f.class();
+        let c = clazz.cp.constant(i);
 
         match c {
             cp::Constant::Primitive(c, w) => {
                 if (self == ldc || self == ldc_w) && !w {
-                    f.stack.push_u32(c as u32);
+                    f.push_u32(c as u32);
                     return;
                 }
 
                 if self == ldc2_w && w {
-                    f.stack.push_u64(c);
+                    f.push_u64(c);
                     return;
                 }
             }
             cp::Constant::ClassRef(i) => {
-                let n = f.class.cp.utf8(i as usize);
+                let clazz = f.class();
+                let n = clazz.cp.utf8(i as usize);
                 let c = f.heap.loader.load(n);
-                f.stack.push_obj(c.j_class);
+                f.push_obj(c.j_class);
                 return;
             }
             cp::Constant::String(s) => {
-                f.stack.push_obj(f.heap.new_jstr(s));
+                let o = f.heap.new_jstr(s);
+                f.push_obj(o);
                 return;
             }
         }
@@ -50,33 +53,33 @@ impl Constant for OpCode {
 
         match self {
             nop => {}
-            aconst_null => mf.stack.push_null(),
-            iconst_m1 => mf.stack.push_u32(-1i32 as u32),
-            iconst_0 => mf.stack.push_u32(0),
-            iconst_1 => mf.stack.push_u32(1),
-            iconst_2 => mf.stack.push_u32(2),
-            iconst_3 => mf.stack.push_u32(3),
-            iconst_4 => mf.stack.push_u32(4),
-            iconst_5 => mf.stack.push_u32(5),
+            aconst_null => mf.push_null(),
+            iconst_m1 => mf.push_u32(-1i32 as u32),
+            iconst_0 => mf.push_u32(0),
+            iconst_1 => mf.push_u32(1),
+            iconst_2 => mf.push_u32(2),
+            iconst_3 => mf.push_u32(3),
+            iconst_4 => mf.push_u32(4),
+            iconst_5 => mf.push_u32(5),
 
-            lconst_0 => mf.stack.push_u64(0),
-            lconst_1 => mf.stack.push_u64(1),
+            lconst_0 => mf.push_u64(0),
+            lconst_1 => mf.push_u64(1),
 
-            fconst_0 => mf.stack.push_f32(0.0f32),
-            fconst_1 => mf.stack.push_f32(1.0f32),
-            fconst_2 => mf.stack.push_f32(2.0f32),
+            fconst_0 => mf.push_f32(0.0f32),
+            fconst_1 => mf.push_f32(1.0f32),
+            fconst_2 => mf.push_f32(2.0f32),
 
-            dconst_0 => mf.stack.push_f64(0.0f64),
-            dconst_1 => mf.stack.push_f64(1.0f64),
+            dconst_0 => mf.push_f64(0.0f64),
+            dconst_1 => mf.push_f64(1.0f64),
 
             bipush => {
                 let i = rd.u8();
-                mf.stack.push_u32(i as i8 as i32 as u32);
+                mf.push_u32(i as i8 as i32 as u32);
             }
 
             sipush => {
                 let i = rd.u16();
-                mf.stack.push_u32(i as i16 as i32 as u32);
+                mf.push_u32(i as i16 as i32 as u32);
             }
 
             ldc | ldc_w | ldc2_w => self._ldc(rd, mf),

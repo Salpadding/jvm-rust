@@ -26,7 +26,7 @@ na!(
             return;
         }
 
-        f.stack.push_obj(cl.j_class)
+        f.push_obj(cl.j_class)
     }
 );
 
@@ -37,7 +37,7 @@ na!(
     "(Ljava/lang/Class;)Z",
     th,
     f,
-    { f.stack.push_u32(0) }
+    { f.push_u32(0) }
 );
 
 na!(
@@ -50,7 +50,7 @@ na!(
     {
         let cl = f.this().class;
         let js = f.heap.new_jstr(&cl.name);
-        f.stack.push_obj(js)
+        f.push_obj(js)
     }
 );
 
@@ -64,10 +64,10 @@ na!(
     {
         use crate::heap::class::Object;
         use rp::Rp;
-        let js: Rp<Object> = (f.local_vars[0] as usize).into();
+        let js: Rp<Object> = (f.local_vars()[0] as usize).into();
         let n = js.jstring();
         let cl = f.heap.loader.load(&n);
-        f.stack.push_obj(cl.j_class)
+        f.push_obj(cl.j_class)
     }
 );
 
@@ -83,7 +83,7 @@ na!(
         use rp::Rp;
 
         let jclass = f.this();
-        let pub_only = f.local_vars[1] != 0;
+        let pub_only = f.local_vars()[1] != 0;
         let mut class = jclass.extra_class();
         let field_class = f.heap.loader.load("java/lang/reflect/Field");
         let fields: Vec<Rp<ClassMember>> = class
@@ -98,7 +98,7 @@ na!(
 
         let mut field_arr = f.heap.new_array("java/lang/reflect/Field", fields.len());
 
-        f.stack.push_obj(field_arr);
+        f.push_obj(field_arr);
         if fields.len() == 0 {
             return;
         }

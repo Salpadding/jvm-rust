@@ -1,6 +1,6 @@
 use crate::ins::Store;
 use crate::op::OpCode;
-use crate::runtime::{misc::BytesReader, misc::Slots, vm::JFrame, vm::JThread};
+use crate::runtime::{frame::JFrame, frame::Slots, misc::BytesReader, vm::JThread};
 
 macro_rules! xstore {
     ($rd: ident, $mf: ident, $p: ident, $s: ident, $w: expr) => {{
@@ -9,37 +9,37 @@ macro_rules! xstore {
         } else {
             $rd.u8() as usize
         };
-        let v = { $mf.stack.$p() };
-        $mf.local_vars.$s(end, v);
+        let v = { $mf.$p() };
+        $mf.local_vars().$s(end, v);
     }};
 }
 
 macro_rules! istore_n {
     ($mf: ident, $n: expr) => {{
-        let v = { $mf.stack.pop_u32() };
-        $mf.local_vars.set_u32($n, v);
+        let v = { $mf.pop_u32() };
+        $mf.local_vars().set_u32($n, v);
     }};
 }
 
 macro_rules! lstore_n {
     ($mf: ident, $n: expr) => {{
-        let v = { $mf.stack.pop_u64() };
-        $mf.local_vars.set_u64($n, v);
+        let v = { $mf.pop_u64() };
+        $mf.local_vars().set_u64($n, v);
     }};
 }
 
 macro_rules! astore_n {
     ($mf: ident, $n: expr) => {{
-        let v = { $mf.stack.pop_cell() };
-        $mf.local_vars.set_cell($n, v);
+        let v = { $mf.pop_slot() };
+        $mf.local_vars().set_slot($n, v);
     }};
 }
 
 macro_rules! xastore {
     ($mf: ident, $p: ident) => {{
-        let v = $mf.stack.$p();
-        let i = $mf.stack.pop_u32() as usize;
-        let mut obj = $mf.stack.pop_obj();
+        let v = $mf.$p();
+        let i = $mf.pop_u32() as usize;
+        let mut obj = $mf.pop_obj();
         obj.jarray()[i] = v;
     }};
 }
@@ -51,7 +51,7 @@ impl Store for OpCode {
         match self {
             istore | fstore => xstore!(rd, mf, pop_u32, set_u32, w),
             lstore | dstore => xstore!(rd, mf, pop_u64, set_u64, w),
-            astore => xstore!(rd, mf, pop_cell, set_cell, w),
+            astore => xstore!(rd, mf, pop_slot, set_slot, w),
             istore_0 | fstore_0 => istore_n!(mf, 0),
             istore_1 | fstore_1 => istore_n!(mf, 1),
             istore_2 | fstore_2 => istore_n!(mf, 2),
@@ -67,7 +67,7 @@ impl Store for OpCode {
             iastore | fastore => xastore!(mf, pop_u32),
             dastore | lastore => xastore!(mf, pop_u64),
             sastore | castore => xastore!(mf, pop_u16),
-            aastore => xastore!(mf, pop_cell),
+            aastore => xastore!(mf, pop_slot),
             bastore => xastore!(mf, pop_u8),
             _ => panic!("invalid op {:?}", self),
         };
