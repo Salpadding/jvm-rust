@@ -1,7 +1,7 @@
 use crate::runtime::frame::Slots;
 
 na!(DebugReg, "test/Debug", "registerNatives", "()V", th, f, {
-    reg!(th.registry, N1, N2, N3, N4, N5, N6, N7);
+    reg!(th.registry, N1, N2, N3, N4, N5, N6, N7, N8);
 });
 
 macro_rules! db {
@@ -20,3 +20,4 @@ db!(N4, "(D)V", f, f.local_vars().get_f64(0));
 db!(N5, "(Z)V", f, f.local_vars().get_u32(0) != 0);
 db!(N6, "(B)V", f, f.local_vars().get_u32(0) as i8);
 db!(N7, "(S)V", f, f.local_vars().get_u32(0) as i16);
+db!(N8, "(I)V", f, f.local_vars().get_i32(0));

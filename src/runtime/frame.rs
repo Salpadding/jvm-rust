@@ -198,7 +198,7 @@ impl JFrame {
 
     #[inline]
     pub fn push_slot(&mut self, v: u64) {
-        self.slots()[self.stack_size as usize] = v;
+        self.stack_base[self.stack_size as usize] = v;
         self.stack_size += 1;
     }
 
@@ -221,7 +221,7 @@ impl JFrame {
 
     #[inline]
     pub fn back_obj(&self, i: usize) -> Rp<Object> {
-        (self.slots()[self.stack_size as usize - i] as usize).into()
+        (self.stack_base[self.stack_size as usize - i] as usize).into()
     }
 }
 
@@ -323,71 +323,70 @@ pub(crate) trait DupStack {
 
 impl DupStack for JFrame {
     fn dup(&mut self) {
-        let top = { self.slots()[self.stack_size as usize - 1] };
+        let top = { self.stack_base[self.stack_size as usize - 1] };
         self.push_slot(top);
     }
 
     fn dup2(&mut self) {
-        let s = self.slots();
         let (v2, v1) = {
             (
-                self.slots()[self.stack_size as usize - 2],
-                self.slots()[self.stack_size as usize - 1],
+                self.stack_base[self.stack_size as usize - 2],
+                self.stack_base[self.stack_size as usize - 1],
             )
         };
-        self.slots()[self.stack_size as usize] = v2;
-        self.slots()[self.stack_size as usize + 1] = v1;
+        self.stack_base[self.stack_size as usize] = v2;
+        self.stack_base[self.stack_size as usize + 1] = v1;
         self.stack_size += 2;
     }
 
     fn dup_x1(&mut self) {
-        let v1 = self.slots()[self.stack_size as usize - 1];
-        let v2 = self.slots()[self.stack_size as usize - 2];
-        self.slots()[self.stack_size as usize - 1] = v2;
-        self.slots()[self.stack_size as usize - 2] = v1;
+        let v1 = self.stack_base[self.stack_size as usize - 1];
+        let v2 = self.stack_base[self.stack_size as usize - 2];
+        self.stack_base[self.stack_size as usize - 1] = v2;
+        self.stack_base[self.stack_size as usize - 2] = v1;
         self.push_slot(v1);
     }
 
     fn dup_x2(&mut self) {
-        let v1 = self.slots()[self.stack_size as usize - 1];
-        let v2 = self.slots()[self.stack_size as usize - 2];
-        let v3 = self.slots()[self.stack_size as usize - 3];
-        self.slots()[self.stack_size as usize - 1] = v2;
-        self.slots()[self.stack_size as usize - 2] = v3;
-        self.slots()[self.stack_size as usize - 3] = v1;
+        let v1 = self.stack_base[self.stack_size as usize - 1];
+        let v2 = self.stack_base[self.stack_size as usize - 2];
+        let v3 = self.stack_base[self.stack_size as usize - 3];
+        self.stack_base[self.stack_size as usize - 1] = v2;
+        self.stack_base[self.stack_size as usize - 2] = v3;
+        self.stack_base[self.stack_size as usize - 3] = v1;
         self.push_slot(v1);
     }
 
     fn dup2_x1(&mut self) {
-        let v1 = self.slots()[self.stack_size as usize - 1];
-        let v2 = self.slots()[self.stack_size as usize - 2];
-        let v3 = self.slots()[self.stack_size as usize - 3];
-        self.slots()[self.stack_size as usize - 1] = v3;
-        self.slots()[self.stack_size as usize - 2] = v1;
-        self.slots()[self.stack_size as usize - 3] = v2;
-        self.slots()[self.stack_size as usize] = v2;
-        self.slots()[self.stack_size as usize + 1] = v1;
+        let v1 = self.stack_base[self.stack_size as usize - 1];
+        let v2 = self.stack_base[self.stack_size as usize - 2];
+        let v3 = self.stack_base[self.stack_size as usize - 3];
+        self.stack_base[self.stack_size as usize - 1] = v3;
+        self.stack_base[self.stack_size as usize - 2] = v1;
+        self.stack_base[self.stack_size as usize - 3] = v2;
+        self.stack_base[self.stack_size as usize] = v2;
+        self.stack_base[self.stack_size as usize + 1] = v1;
         self.stack_size += 2;
     }
 
     fn dup2_x2(&mut self) {
-        let v1 = self.slots()[self.stack_size as usize - 1];
-        let v2 = self.slots()[self.stack_size as usize - 2];
-        let v3 = self.slots()[self.stack_size as usize - 3];
-        let v4 = self.slots()[self.stack_size as usize - 4];
-        self.slots()[self.stack_size as usize - 1] = v3;
-        self.slots()[self.stack_size as usize - 2] = v4;
-        self.slots()[self.stack_size as usize - 3] = v1;
-        self.slots()[self.stack_size as usize - 4] = v2;
-        self.slots()[self.stack_size as usize] = v2;
-        self.slots()[self.stack_size as usize + 1] = v1;
+        let v1 = self.stack_base[self.stack_size as usize - 1];
+        let v2 = self.stack_base[self.stack_size as usize - 2];
+        let v3 = self.stack_base[self.stack_size as usize - 3];
+        let v4 = self.stack_base[self.stack_size as usize - 4];
+        self.stack_base[self.stack_size as usize - 1] = v3;
+        self.stack_base[self.stack_size as usize - 2] = v4;
+        self.stack_base[self.stack_size as usize - 3] = v1;
+        self.stack_base[self.stack_size as usize - 4] = v2;
+        self.stack_base[self.stack_size as usize] = v2;
+        self.stack_base[self.stack_size as usize + 1] = v1;
         self.stack_size += 2;
     }
 
     fn swap(&mut self) {
-        let v1 = self.slots()[self.stack_size as usize - 1];
-        let v2 = self.slots()[self.stack_size as usize - 2];
-        self.slots()[self.stack_size as usize - 1] = v2;
-        self.slots()[self.stack_size as usize - 2] = v1;
+        let v1 = self.stack_base[self.stack_size as usize - 1];
+        let v2 = self.stack_base[self.stack_size as usize - 2];
+        self.stack_base[self.stack_size as usize - 1] = v2;
+        self.stack_base[self.stack_size as usize - 2] = v1;
     }
 }

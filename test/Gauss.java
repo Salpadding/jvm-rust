@@ -1,5 +1,7 @@
 package test;
 
+import test.Debug;
+
 public class Gauss {
     public static final int MAX = 100;
 
@@ -8,5 +10,7 @@ public class Gauss {
         for(int i = 0; i <= 100; i++) {
             sum += i;
         }
+
+        Debug.println(sum);
     }
 }

@@ -270,12 +270,6 @@ mod test {
     }
 
     #[test]
-    fn test_jvm_obj() {
-        let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
-        jvm.run_class("test/MyObject").unwrap();
-    }
-
-    #[test]
     fn test_jvm_invoke() {
         let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
         jvm.run_class("test/InvokeTest").unwrap();

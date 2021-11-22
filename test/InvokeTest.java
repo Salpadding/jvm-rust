@@ -1,5 +1,7 @@
 package test;
 
+import test.Debug;
+
 public class InvokeTest implements Runnable {
     public static void main(String[] args) {
         new InvokeTest().test();
@@ -12,7 +14,7 @@ public class InvokeTest implements Runnable {
         super.equals(null);
         this.run();
         ((Runnable) test).run();
-        System.out.println(1000L);
+        Debug.println(1000L);
     }
 
     public static void staticMethod() {
