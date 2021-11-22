@@ -1,7 +1,7 @@
 use crate::heap::{class::Class, class::ClassMember, class::Object, misc::Heap, misc::SymRef};
 use crate::natives::NativeRegistry;
 use crate::runtime::misc::{BytesReader, OpStack};
-use crate::StringErr;
+use err::StringErr;
 use rp::Rp;
 const MAX_JSTACK_SIZE: usize = 1024;
 
@@ -329,7 +329,6 @@ mod test {
     #[test]
     fn test_hello_world() {
         let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
-        jvm.init();
         // TODO: jni
         jvm.run_class("test/HelloWorld").unwrap();
     }

@@ -1,7 +1,7 @@
-use crate::attr::AttrInfo;
-use crate::cp::{ClassFile, ConstantPool, MemberInfo};
 use crate::heap::misc::{AccessFlags, SymRef};
 use crate::runtime::vm::JThread;
+use cp::AttrInfo;
+use cp::{ClassFile, ConstantPool, MemberInfo};
 use rp::Rp;
 use std::fmt::Debug;
 use std::ops::Deref;
@@ -380,8 +380,8 @@ impl Class {
             }
 
             let (c, b) = match self.cp.constant(f.cons_i) {
-                crate::cp::Constant::Primitive(i, _) => (i, true),
-                crate::cp::Constant::String(s) => (self.heap.new_jstr(s).ptr() as u64, true),
+                cp::Constant::Primitive(i, _) => (i, true),
+                cp::Constant::String(s) => (self.heap.new_jstr(s).ptr() as u64, true),
                 _ => (0, false),
             };
 

@@ -1,7 +1,10 @@
+use rp::Rp;
+use std::collections::BTreeMap;
+
 macro_rules! cp_member {
     ($n: ident, $t: path) => {
         // field index -> (class, name, desc)
-        pub fn $n(&self, i: usize) -> (&str, &str, &str) {
+        pub fn $n(&self, i: usize) -> (Rp<String>, Rp<String>, Rp<String>) {
             let j = match self.infos[i as usize] {
                 $t {
                     class_i,
@@ -27,15 +30,16 @@ macro_rules! cp_member {
 #[derive(Default, Debug)]
 pub struct ConstantPool {
     infos: Vec<ConstantInfo>,
+    str_pool: BTreeMap<String, Rp<String>>,
 }
 
 #[derive(Debug)]
-pub enum Constant<'a> {
+pub enum Constant {
     // value, wide?
     Primitive(u64, bool),
     // class reference
     ClassRef(u16),
-    String(&'a str),
+    String(Rp<String>),
 }
 
 // 常量池
@@ -50,7 +54,7 @@ pub enum ConstantInfo {
     Float(f32),
     Long(u64),
     Double(f64),
-    Utf8(String),
+    Utf8(Rp<String>),
     String {
         // index refers to utf8
         utf8_i: u16,
@@ -108,16 +112,17 @@ pub enum ConstantInfo {
 
 impl ConstantPool {
     pub fn new(infos: Vec<ConstantInfo>) -> Self {
-        Self { infos }
+        let p = BTreeMap::new();
+        Self { infos, str_pool: p }
     }
-    pub fn utf8(&self, i: usize) -> &str {
+    pub fn utf8(&self, i: usize) -> Rp<String> {
         match self.infos[i as usize] {
-            ConstantInfo::Utf8(ref a) => &a,
+            ConstantInfo::Utf8(a) => a,
             _ => panic!("invalid utf8 index"),
         }
     }
 
-    pub fn class(&self, i: usize) -> &str {
+    pub fn class(&self, i: usize) -> Rp<String> {
         let j = match self.infos[i as usize] {
             ConstantInfo::Class { name_i } => name_i,
             _ => panic!("invalid class index {}", i),
@@ -165,7 +170,7 @@ impl ConstantPool {
         }
     }
 
-    pub fn string(&self, i: usize) -> &str {
+    pub fn string(&self, i: usize) -> Rp<String> {
         let j = match self.infos[i as usize] {
             ConstantInfo::String { utf8_i } => utf8_i as usize,
             _ => panic!("invalid string index"),

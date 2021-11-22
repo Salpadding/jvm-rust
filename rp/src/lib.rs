@@ -228,6 +228,14 @@ impl<T: Clone + Default> Rp<T> {
     }
 }
 
+impl Rp<String> {
+    pub fn str(&self) -> &str {
+        let s: &'static String = self.get_mut();
+        let r = s.as_str();
+        r
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::Rp;

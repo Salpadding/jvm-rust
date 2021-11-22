@@ -1,7 +1,7 @@
 use std::io::Read;
 use std::path::{self, Path};
 
-pub fn read_file<P: AsRef<Path>>(path: P) -> Option<Vec<u8>> {
+pub(crate) fn read_file<P: AsRef<Path>>(path: P) -> Option<Vec<u8>> {
     use std::fs;
     let f = fs::File::open(path);
     if f.is_err() {
@@ -13,7 +13,7 @@ pub fn read_file<P: AsRef<Path>>(path: P) -> Option<Vec<u8>> {
     Some(buf)
 }
 
-pub fn norm_path(p: &str) -> String {
+pub(crate) fn norm_path(p: &str) -> String {
     let mut s = String::with_capacity(p.len());
     for c in p.chars().into_iter() {
         if c == '\\' || c == '/' {

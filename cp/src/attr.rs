@@ -112,7 +112,7 @@ impl ReadFrom for AttrInfo {
         let name_i = p.u16() as usize;
         let attr_len = p.u32() as usize;
 
-        match cp.utf8(name_i) {
+        match cp.utf8(name_i).str() {
             "Deprecated" => Self::Deprecated,
             "Synthetic" => Self::Synthetic,
             "SourceFile" => {

@@ -8,10 +8,9 @@ mod io_utils;
 extern crate err;
 
 pub use crate::attr::*;
+pub use crate::class_file::*;
 pub use crate::cp::*;
-
-use rp::Rp;
-use std::collections::BTreeMap;
+pub use crate::entry::{new_entry, Entry};
 
 trait ReadFrom: Sized {
     fn read_from(p: &mut ClassFileParser, cp: &ConstantPool) -> Self;
@@ -32,14 +31,9 @@ impl ReadFrom for u16 {
     }
 }
 
-pub struct ClassPath {
-    str_pool: BTreeMap<String, Rp<String>>,
-}
-
-pub(crate) struct ClassFileParser<'a> {
+pub(crate) struct ClassFileParser {
     bin: Vec<u8>,
     off: usize,
-    pool: &'a mut BTreeMap<String, Rp<String>>,
 }
 
 #[cfg(test)]

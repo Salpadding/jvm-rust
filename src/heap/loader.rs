@@ -1,9 +1,8 @@
-use crate::cp::ClassFile;
-use crate::entry;
-use crate::entry::Entry;
 use crate::heap::class::Class;
 use crate::heap::desc::DescriptorParser;
-use crate::StringErr;
+use cp::ClassFile;
+use cp::Entry;
+use err::StringErr;
 use rp::Rp;
 use std::collections::BTreeMap;
 
@@ -55,7 +54,7 @@ impl ClassLoader {
     }
 
     pub fn new(cp: &str, heap: Rp<Heap>) -> Result<Rp<Self>, StringErr> {
-        let entry = entry::new_entry(cp)?;
+        let entry = cp::new_entry(cp)?;
 
         let mut cl = Rp::new(ClassLoader {
             entry,

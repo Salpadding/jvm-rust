@@ -218,7 +218,7 @@ mod test {
 
     #[test]
     fn test_dir_entry() {
-        let e = super::DirEntry::new(".").unwrap();
+        let e = super::DirEntry::new("..").unwrap();
         e.read_class("test/Test").unwrap();
     }
 }

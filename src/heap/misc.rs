@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::heap::class::{Class, Object};
 use crate::heap::loader::ClassLoader;
-use crate::StringErr;
+use err::StringErr;
 use rp::Rp;
 
 use super::class::ClassMember;

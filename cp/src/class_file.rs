@@ -1,14 +1,15 @@
 use crate::{AttrInfo, ConstantInfo, ConstantPool, ReadFrom};
+use rp::Rp;
 
 #[derive(Default, Debug)]
 // java 类文件
 pub struct ClassFile {
     // 魔数, CAFEBABE
-    pub magic: u32,
+    magic: u32,
     // 次版本号, 通常是 0
-    pub minor_version: u16,
+    minor_version: u16,
     // 主版本号, 对于 jdk8 编译出的 class 文件通常是 52
-    pub major_version: u16,
+    major_version: u16,
 
     // 常量池
     pub cp: ConstantPool,
@@ -98,7 +99,7 @@ impl ReadFrom for ConstantInfo {
                 let bytes = p.bytes(str_len);
                 let utf8 = mutf8::mutf8_to_utf8(bytes).unwrap();
                 let s = String::from_utf8(utf8.into_owned()).unwrap();
-                ConstantInfo::Utf8(s)
+                ConstantInfo::Utf8(Rp::new(s))
             }
             STRING => ConstantInfo::String { utf8_i: p.u16() },
             CLASS => ConstantInfo::Class { name_i: p.u16() },
@@ -178,14 +179,14 @@ impl ClassFile {
     }
 
     // name of this class
-    pub fn this_class(&self) -> &str {
+    pub fn this_class(&self) -> Rp<String> {
         self.cp.class(self.this_class_i as usize)
     }
 
     // name of super class, return "" if no super class
-    pub fn super_class(&self) -> &str {
+    pub fn super_class(&self) -> Rp<String> {
         if self.super_class_i == 0 {
-            ""
+            Rp::null()
         } else {
             self.cp.class(self.super_class_i as usize)
         }
@@ -196,7 +197,7 @@ impl ClassFile {
     }
 
     // interface list
-    pub fn interface(&self, i: usize) -> &str {
+    pub fn interface(&self, i: usize) -> Rp<String> {
         let j = self.interfaces_i[i];
         self.cp.class(j as usize)
     }
@@ -280,16 +281,16 @@ mod test {
 
     #[test]
     fn classfile_test() {
-        let e = DirEntry::new(".").unwrap();
+        let e = DirEntry::new("..").unwrap();
         let c = ClassFile::new(e.read_class("test/Test").unwrap());
         println!("{:#?}", c);
         assert_eq!(c.magic, 0xCAFEBABE);
 
-        println!("{}", c.this_class());
-        println!("{}", c.super_class());
+        println!("{:?}", c.this_class());
+        println!("{:?}", c.super_class());
 
         for i in 0..c.interfaces_i.len() {
-            println!("interface {}", c.interface(i))
+            println!("interface {:?}", c.interface(i))
         }
     }
 }
