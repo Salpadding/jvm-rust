@@ -329,13 +329,6 @@ mod test {
     #[test]
     fn test_hello_world() {
         let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
-        // TODO: jni
-        jvm.run_class("test/HelloWorld").unwrap();
-    }
-
-    #[test]
-    fn test_init() {
-        let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
-        jvm.init();
+        jvm.run_class("test/Debug").unwrap();
     }
 }

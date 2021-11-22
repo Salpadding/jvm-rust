@@ -84,7 +84,7 @@ pub struct Heap {
     primitives: Vec<Rp<Class>>,
     primitive_array: Vec<Rp<Class>>,
     string_pool: BTreeMap<String, Rp<Object>>,
-    pub java_lang_string: Rp<Class>,
+    pub jstring: Rp<Class>,
 }
 
 macro_rules! xx_ref {
@@ -137,7 +137,7 @@ impl Heap {
             loader: Rp::null(),
             primitives: Vec::new(),
             primitive_array: Vec::new(),
-            java_lang_string: Rp::null(),
+            jstring: Rp::null(),
             string_pool: BTreeMap::new(),
         });
 
@@ -170,7 +170,7 @@ impl Heap {
     }
 
     fn create_jstr(&mut self, s: &str) -> Rp<Object> {
-        let mut o = Class::new_obj(self.java_lang_string);
+        let mut o = Class::new_obj(self.jstring);
         self.string_pool.insert(s.to_string(), o);
 
         // set first field

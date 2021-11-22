@@ -223,6 +223,11 @@ pub trait Slots {
     }
 
     #[inline]
+    fn get_i64(&self, i: usize) -> i64 {
+        self.get_u64(i) as i64
+    }
+
+    #[inline]
     fn set_f32(&mut self, i: usize, v: f32) {
         self.set_u32(i, v.to_bits());
     }

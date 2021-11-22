@@ -35,6 +35,7 @@ macro_rules! reg {
 }
 
 mod class;
+mod debug;
 mod object;
 mod sun;
 mod system;
@@ -67,12 +68,13 @@ impl NativeRegistry {
             data: BTreeMap::new(),
         };
         use crate::natives::class::ClassReg;
+        use crate::natives::debug::DebugReg;
         use crate::natives::object::JLOReg;
         use crate::natives::sun::UnsafeReg;
         use crate::natives::system::JLSReg;
         use crate::natives::thread::ThreadReg;
         reg!(
-            r, JLOReg, JLSReg, ClassReg, ThreadReg,
+            r, DebugReg, JLOReg, JLSReg, ClassReg, ThreadReg,
             // ReflectCallerClass,
             UnsafeReg // ACGetCtx,
                       // ACDopri,

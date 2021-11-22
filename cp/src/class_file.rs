@@ -99,7 +99,7 @@ impl ReadFrom for ConstantInfo {
                 let bytes = p.bytes(str_len);
                 let utf8 = mutf8::mutf8_to_utf8(bytes).unwrap();
                 let s = String::from_utf8(utf8.into_owned()).unwrap();
-                ConstantInfo::Utf8(Rp::new(s))
+                ConstantInfo::Utf8(s)
             }
             STRING => ConstantInfo::String { utf8_i: p.u16() },
             CLASS => ConstantInfo::Class { name_i: p.u16() },
@@ -179,14 +179,14 @@ impl ClassFile {
     }
 
     // name of this class
-    pub fn this_class(&self) -> Rp<String> {
+    pub fn this_class(&self) -> &str {
         self.cp.class(self.this_class_i as usize)
     }
 
     // name of super class, return "" if no super class
-    pub fn super_class(&self) -> Rp<String> {
+    pub fn super_class(&self) -> &str {
         if self.super_class_i == 0 {
-            Rp::null()
+            ""
         } else {
             self.cp.class(self.super_class_i as usize)
         }
@@ -197,7 +197,7 @@ impl ClassFile {
     }
 
     // interface list
-    pub fn interface(&self, i: usize) -> Rp<String> {
+    pub fn interface(&self, i: usize) -> &str {
         let j = self.interfaces_i[i];
         self.cp.class(j as usize)
     }

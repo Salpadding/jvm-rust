@@ -14,8 +14,8 @@ pub struct ClassLoader {
     entry: Box<dyn Entry>,
     loaded: BTreeMap<String, Rp<Class>>,
     classes: Vec<Rp<Class>>,
-    java_lang_class: Rp<Class>,
-    java_lang_string: Rp<Class>,
+    jclass: Rp<Class>,
+    jstring: Rp<Class>,
     heap: Rp<Heap>,
 }
 
@@ -44,12 +44,9 @@ impl ClassLoader {
 
         // create a class object of size field + 1
         // we use the last field to store class pointer
-        let mut o = Class::new_obj_size(
-            self.java_lang_class,
-            self.java_lang_class.ins_fields.len() + 1,
-        );
+        let mut o = Class::new_obj_size(self.jclass, self.jclass.ins_fields.len() + 1);
 
-        o.set(self.java_lang_class.ins_fields.len(), c.ptr());
+        o.set(self.jclass.ins_fields.len(), c.ptr());
         c.get_mut().j_class = o;
     }
 
@@ -60,8 +57,8 @@ impl ClassLoader {
             entry,
             loaded: BTreeMap::new(),
             classes: Vec::new(),
-            java_lang_class: Rp::null(),
-            java_lang_string: Rp::null(),
+            jclass: Rp::null(),
+            jstring: Rp::null(),
             heap,
         });
 
@@ -72,13 +69,13 @@ impl ClassLoader {
     }
 
     fn init(&mut self) {
-        if !self.java_lang_class.is_null() {
+        if !self.jclass.is_null() {
             return;
         }
 
-        self.java_lang_string = self.load("java/lang/String");
-        self.heap.java_lang_string = self.java_lang_string;
-        self.java_lang_class = self.load("java/lang/Class");
+        self.jstring = self.load("java/lang/String");
+        self.heap.jstring = self.jstring;
+        self.jclass = self.load("java/lang/Class");
 
         for c in self.classes.iter() {
             self.assign_j_class(*c);
@@ -214,7 +211,7 @@ impl ClassLoader {
         p.get_mut().id = class_id;
 
         // create class object
-        if !self.java_lang_class.is_null() {
+        if !self.jclass.is_null() {
             self.assign_j_class(p);
         }
 
