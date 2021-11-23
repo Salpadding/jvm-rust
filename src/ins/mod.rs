@@ -60,8 +60,7 @@ impl Ins for u8 {
     fn step(self, rd: &mut BytesReader, th: &mut JThread, c: &mut JFrame, wide: bool) {
         let op: OpCode = self.into();
 
-        // if c.method.name != "hashCode" && c.method.name != "equals"
-        // {
+        // if c.method.name != "hashCode" && c.method.name != "equals" {
         //     println!(
         //     "op code = {:?} class = {} method = {} desc = {} native = {} pc = {} stack size = {} frame id = {}",
         //     op,

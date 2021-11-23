@@ -10,11 +10,9 @@ impl Other for OpCode {
         match self {
             impdep1 => {
                 let p: Rp<JThread> = th.into();
-                let w = th.registry.find(
-                    mf.class().name.as_str(),
-                    mf.method.name.as_str(),
-                    mf.method.desc.as_str(),
-                );
+                let w = th
+                    .registry
+                    .find(&mf.class().name, &mf.method.name, &mf.method.desc);
                 w.inner.exec(p.get_mut(), mf);
             }
             _ => {

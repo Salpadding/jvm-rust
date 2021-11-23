@@ -7,8 +7,8 @@ impl Stack for OpCode {
         use crate::op::OpCode::*;
 
         match self {
-            pop => mf.stack_size -= 1,
-            pop2 => mf.stack_size -= 2,
+            pop => mf.drop(1),
+            pop2 => mf.drop(2),
             dup => mf.dup(),
             dup_x1 => mf.dup_x1(),
             dup_x2 => mf.dup_x2(),

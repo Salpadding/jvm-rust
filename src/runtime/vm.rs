@@ -1,12 +1,10 @@
-use std::ops::Add;
-
 use crate::heap::{class::Class, class::ClassMember, class::Object, misc::Heap, misc::SymRef};
 use crate::natives::NativeRegistry;
-use crate::runtime::frame::JFrame;
+use crate::runtime::frame::{JFrame, JStack};
 use crate::runtime::misc::BytesReader;
 use err::StringErr;
 use rp::Rp;
-const MAX_JSTACK_SIZE: usize = 1024;
+use std::ops::Add;
 
 // jvm runtime representation
 pub struct Jvm {
@@ -49,7 +47,7 @@ impl Jvm {
             return err!("class {} has no main method", &c.name);
         }
 
-        self.thread.stack.push_frame(self.thread.new_frame(main));
+        self.thread.push_frame(main);
         self.thread.run();
 
         Ok(())
@@ -62,7 +60,6 @@ pub struct JThread {
     next_pc: Option<u32>,
     pub heap: Rp<Heap>,
     pub registry: Rp<NativeRegistry>,
-    pub frame_id: Rp<u32>,
 }
 
 impl JThread {
@@ -80,10 +77,9 @@ impl JThread {
         Self {
             heap,
             pc: 0,
-            stack: JStack::new(),
+            stack: JStack::new(heap),
             next_pc: None,
             registry,
-            frame_id: Rp::new(0),
         }
     }
     #[inline]
@@ -92,8 +88,8 @@ impl JThread {
     }
 
     #[inline]
-    pub fn push_frame(&mut self, frame: JFrame) {
-        self.stack.push_frame(frame)
+    pub fn push_frame(&mut self, m: Rp<ClassMember>) -> Rp<JFrame> {
+        self.stack.push_frame(m)
     }
 
     #[inline]
@@ -111,33 +107,26 @@ impl JThread {
         self.stack.prev_frame()
     }
 
-    pub fn new_frame(&self, m: Rp<ClassMember>) -> JFrame {
-        let id = *self.frame_id;
-        // println!("create frame {}.{} id = {}", m.class.name, m.name, id);
-        (*self.frame_id.get_mut()) = id + 1;
-        self.stack.new_frame(id as u16, self.heap, m)
-    }
-
     #[inline]
     pub fn cur_frame(&self) -> Rp<JFrame> {
         self.stack.cur_frame()
     }
 
     fn print_stack(&self, sep: char) {
-        for i in 0..32 {
-            print!("{}", sep);
-        }
-        print!("{}", '\n');
-        println!("thread pc = {}, next_pc = {:?}", self.pc, self.next_pc);
+        // for i in 0..32 {
+        //     print!("{}", sep);
+        // }
+        // print!("{}", '\n');
+        // println!("thread pc = {}, next_pc = {:?}", self.pc, self.next_pc);
 
-        for i in 0..self.stack.size {
-            println!(
-                "frame at {} method = {} next pc = {}",
-                i,
-                self.stack.frames[i].as_ref().unwrap().method.name,
-                self.stack.frames[i].as_ref().unwrap().next_pc,
-            );
-        }
+        // for i in 0..self.stack.size {
+        //     println!(
+        //         "frame at {} method = {} next pc = {}",
+        //         i,
+        //         self.stack.frames[i].as_ref().unwrap().method.name,
+        //         self.stack.frames[i].as_ref().unwrap().next_pc,
+        //     );
+        // }
     }
 
     pub fn run(&mut self) {
@@ -184,81 +173,13 @@ impl JThread {
         drop: bool,
     ) {
         let m = obj.class.lookup_method(name, desc);
-        let mut nf = self.new_frame(m);
-        nf.drop = drop;
+        let mut nf = self.push_frame(m);
+        nf.no_ret = drop;
         nf.local_vars().copy_from_slice(args);
-        self.stack.push_frame(nf);
     }
 }
 
 // TODO: limit stack size
-pub struct JStack {
-    frames: [Option<JFrame>; MAX_JSTACK_SIZE],
-    // default stack size = 64k = 64 * 1024
-    stack_data: Vec<u64>,
-    size: usize,
-}
-
-impl JStack {
-    fn new() -> Self {
-        const init: Option<JFrame> = None;
-        Self {
-            frames: [init; MAX_JSTACK_SIZE],
-            size: 0,
-            stack_data: vec![0; 64 * 1024 / 8],
-        }
-    }
-
-    fn new_frame(&self, id: u16, heap: Rp<Heap>, m: Rp<ClassMember>) -> JFrame {
-        let mut f = JFrame::new(id, heap, m);
-
-        // TODO: use realloc to allocate memory
-        // assign stack base
-        // new stack base = prev stack base + prev max stack
-        let new_base: Rp<u64> = if self.is_empty() {
-            self.stack_data.as_ptr().into()
-        } else {
-            let cur = self.cur_frame();
-            unsafe { cur.stack_base.raw().add(cur.max_stack()).into() }
-        };
-
-        f.local_base = new_base;
-        f.stack_base = unsafe { f.local_base.raw().add(f.max_locals()).into() };
-        f
-    }
-
-    #[inline]
-    fn push_frame(&mut self, mut frame: JFrame) {
-        self.frames[self.size] = Some(frame);
-        self.size += 1;
-    }
-
-    #[inline]
-    fn pop_frame(&mut self) {
-        self.size -= 1;
-    }
-
-    #[inline]
-    fn back_frame(&self, i: usize) -> Rp<JFrame> {
-        self.frames[self.size - i].as_ref().unwrap().into()
-    }
-
-    #[inline]
-    fn prev_frame(&self) -> Rp<JFrame> {
-        self.frames[self.size - 2].as_ref().unwrap().into()
-    }
-
-    #[inline]
-    fn cur_frame(&self) -> Rp<JFrame> {
-        self.frames[self.size - 1].as_ref().unwrap().into()
-    }
-
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.size == 0
-    }
-}
-
 #[cfg(test)]
 mod test {
     use crate::runtime::vm::Jvm;

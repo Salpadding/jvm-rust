@@ -92,7 +92,7 @@ impl Control for OpCode {
             ireturn | lreturn | freturn | dreturn | areturn | return_void => {
                 let mut s = self;
 
-                if mf.drop {
+                if mf.no_ret {
                     s = return_void;
                 }
 

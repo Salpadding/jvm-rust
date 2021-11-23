@@ -86,7 +86,7 @@ na!(VM, "sun/misc/VM", "initialize", "()V", th, f, {
     // call initializeSystemClass
     let m = f.heap.loader.load("java/lang/System");
     let m = m.lookup_method_in_class("initializeSystemClass", "()V");
-    th.push_frame(th.new_frame(m));
+    th.push_frame(m);
 });
 
 na!(

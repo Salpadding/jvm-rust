@@ -222,8 +222,7 @@ impl Class {
         let init = self.clinit_method();
 
         if !init.is_null() {
-            let fr = th.new_frame(init);
-            th.push_frame(fr);
+            th.push_frame(init);
         }
 
         // init super class

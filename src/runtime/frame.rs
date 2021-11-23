@@ -1,17 +1,88 @@
 use crate::heap::class::{Class, ClassMember, Object};
 use crate::heap::misc::{Heap, SymRef};
+use cp::ConstantPool;
 use rp::Rp;
 
-#[derive(Default, Clone)]
+const MAX_JSTACK_SIZE: usize = 1024;
+pub struct JStack {
+    frames: [JFrame; MAX_JSTACK_SIZE],
+    // default stack size = 64k = 64 * 1024
+    stack_data: Vec<u64>,
+    size: usize,
+}
+
+impl JStack {
+    pub fn new(heap: Rp<Heap>) -> Self {
+        let mut r = Self {
+            frames: [JFrame::default(); MAX_JSTACK_SIZE],
+            size: 0,
+            stack_data: vec![0; 64 * 1024 / 8],
+        };
+
+        for i in 0..r.frames.len() {
+            r.frames[i].id = i as u16;
+            r.frames[i].heap = heap;
+        }
+
+        r
+    }
+
+    pub fn push_frame(&mut self, m: Rp<ClassMember>) -> Rp<JFrame> {
+        let empty = self.is_empty();
+        let cur = if empty { Rp::null() } else { self.cur_frame() };
+
+        let f = &mut self.frames[self.size];
+
+        // TODO: use realloc to allocate memory
+        // assign stack base
+        // new stack base = prev stack base + prev max stack
+        let new_base: Rp<u64> = if empty {
+            self.stack_data.as_ptr().into()
+        } else {
+            unsafe { cur.stack_base.raw().add(cur.max_stack()).into() }
+        };
+
+        f.reset(new_base, m);
+        self.size += 1;
+        f.into()
+    }
+
+    #[inline]
+    pub fn pop_frame(&mut self) {
+        self.size -= 1;
+    }
+
+    #[inline]
+    pub fn back_frame(&self, i: usize) -> Rp<JFrame> {
+        unsafe { self.frames.as_ptr().add(self.size - i).into() }
+    }
+
+    #[inline]
+    pub fn prev_frame(&self) -> Rp<JFrame> {
+        unsafe { self.frames.as_ptr().add(self.size - 2).into() }
+    }
+
+    #[inline]
+    pub fn cur_frame(&self) -> Rp<JFrame> {
+        unsafe { self.frames.as_ptr().add(self.size - 1).into() }
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
+    }
+}
+
+#[derive(Default, Clone, Copy)]
 pub struct JFrame {
-    pub local_base: Rp<u64>,
+    local_base: Rp<u64>,
     pub method: Rp<ClassMember>,
     pub heap: Rp<Heap>,
     pub next_pc: u32,
-    pub id: u16,
-    pub drop: bool,
-    pub stack_base: Rp<u64>,
-    pub stack_size: u16,
+    id: u16,
+    pub no_ret: bool,
+    stack_base: Rp<u64>,
+    stack_size: u16,
 }
 
 macro_rules! xx_ref {
@@ -25,6 +96,23 @@ macro_rules! xx_ref {
 }
 
 impl JFrame {
+    #[inline]
+    pub fn id(&self) -> u16 {
+        self.id
+    }
+
+    #[inline]
+    pub fn drop(&mut self, n: usize) {
+        self.stack_size -= n as u16;
+    }
+
+    pub fn reset(&mut self, local_base: Rp<u64>, method: Rp<ClassMember>) {
+        self.method = method;
+        self.next_pc = 0;
+        self.local_base = local_base;
+        self.stack_base = unsafe { self.local_base.raw().add(self.max_locals()).into() };
+        self.stack_size = 0;
+    }
     #[inline]
     pub fn pop_slots(&mut self, i: usize) -> &'static [u64] {
         let r = &self.slots()[self.stack_size as usize - i..self.stack_size as usize];
@@ -63,21 +151,13 @@ impl JFrame {
     }
 
     #[inline]
-    pub fn this(&self) -> Rp<Object> {
-        (self.local_vars()[0] as usize).into()
+    pub fn cp(&self) -> Rp<ConstantPool> {
+        (&self.class().cp).into()
     }
 
-    pub fn new(id: u16, heap: Rp<Heap>, method: Rp<ClassMember>) -> Self {
-        Self {
-            local_base: Rp::null(),
-            method,
-            heap,
-            next_pc: 0,
-            id,
-            drop: false,
-            stack_base: Rp::null(),
-            stack_size: 0,
-        }
+    #[inline]
+    pub fn this(&self) -> Rp<Object> {
+        (self.local_vars()[0] as usize).into()
     }
 
     xx_ref!(class_ref);

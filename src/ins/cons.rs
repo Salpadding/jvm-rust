@@ -14,8 +14,8 @@ impl Ldc for OpCode {
             _ => rd.u16() as usize,
         };
 
-        let clazz = f.class();
-        let c = clazz.cp.constant(i);
+        let cp = f.cp();
+        let c = cp.constant(i);
 
         match c {
             cp::Constant::Primitive(c, w) => {
@@ -30,8 +30,8 @@ impl Ldc for OpCode {
                 }
             }
             cp::Constant::ClassRef(i) => {
-                let clazz = f.class();
-                let n = clazz.cp.utf8(i as usize);
+                let cp = f.cp();
+                let n = cp.utf8(i as usize);
                 let c = f.heap.loader.load(n);
                 f.push_obj(c.j_class);
                 return;

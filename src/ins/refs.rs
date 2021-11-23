@@ -80,16 +80,10 @@ impl Refs for OpCode {
                         panic!("java.lang.NullPointerException");
                     }
 
-                    if self == invokevirtual && mf.id > 790 {
-                        println!(
-                            "invoke virtual {}.{} on object {}",
-                            sym.class.name, sym.member.name, obj.class.name
-                        );
-                    }
                     m = obj.class.lookup_method_in_class(&sym.name, &sym.desc);
                 }
 
-                let mut new_frame = th.new_frame(m);
+                let mut new_frame = th.push_frame(m);
                 mf.pass_args(
                     &mut new_frame,
                     if self == invokestatic {
@@ -99,7 +93,6 @@ impl Refs for OpCode {
                         sym.member.m_desc.arg_cells + 1
                     },
                 );
-                th.push_frame(new_frame);
             }
             instanceof | checkcast => {
                 let i = rd.u16() as usize;
