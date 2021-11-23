@@ -4,7 +4,6 @@ use crate::runtime::frame::{JFrame, JStack};
 use crate::runtime::misc::BytesReader;
 use err::StringErr;
 use rp::Rp;
-use std::ops::Add;
 
 // jvm runtime representation
 pub struct Jvm {
@@ -175,7 +174,7 @@ impl JThread {
         let m = obj.class.lookup_method(name, desc);
         let mut nf = self.push_frame(m);
         nf.no_ret = drop;
-        nf.local_vars().copy_from_slice(args);
+        // nf.local_vars().copy_from_slice(args);
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::runtime::frame::Slots;
+use crate::runtime::misc::Slots;
 
 na!(
     JLOReg,

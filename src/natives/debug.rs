@@ -1,4 +1,4 @@
-use crate::runtime::frame::Slots;
+use crate::runtime::misc::Slots;
 
 na!(DebugReg, "test/Debug", "registerNatives", "()V", th, f, {
     reg!(th.registry, N1, N2, N3, N4, N5, N6, N7, N8);

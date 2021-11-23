@@ -123,9 +123,9 @@ impl ClassLoader {
 
     fn inject_native(&self, m: &mut ClassMember) {
         m.max_locals = if m.access_flags.is_static() {
-            m.m_desc.arg_cells
+            m.m_desc.arg_slots
         } else {
-            m.m_desc.arg_cells + 1
+            m.m_desc.arg_slots + 1
         };
 
         use crate::heap::desc::JType;

@@ -22,6 +22,7 @@ impl<T: Debug> Debug for Rp<T> {
 }
 
 impl<T> Clone for Rp<T> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             p: PhantomData,
@@ -66,6 +67,7 @@ impl<T> AsRef<T> for Rp<T> {
 impl<T> core::ops::Index<usize> for Rp<T> {
     type Output = T;
 
+    #[inline]
     fn index(&self, index: usize) -> &Self::Output {
         unsafe { &*(self.ptr as *mut T).add(index) }
     }
@@ -73,6 +75,7 @@ impl<T> core::ops::Index<usize> for Rp<T> {
 
 // index operation for memory allocated by Rp::alloc
 impl<T> core::ops::IndexMut<usize> for Rp<T> {
+    #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         unsafe { &mut *(self.ptr as *mut T).add(index) }
     }
@@ -199,6 +202,36 @@ impl<T> Rp<T> {
     pub fn as_slice(&self, len: usize) -> &'static mut [T] {
         unsafe { core::slice::from_raw_parts_mut(self.raw(), len) }
     }
+
+    #[inline]
+    pub fn offset(&self, off: isize) -> Rp<T> {
+        Self {
+            p: PhantomData,
+            ptr: (self.ptr as isize + (core::mem::size_of::<T>() as isize * off)) as usize,
+        }
+    }
+
+    #[inline]
+    pub fn add(&self, off: usize) -> Rp<T> {
+        Self {
+            p: PhantomData,
+            ptr: self.ptr + off * core::mem::size_of::<T>(),
+        }
+    }
+
+    // cast to another type pointer
+    #[inline]
+    pub fn cast<U>(&self) -> Rp<U> {
+        Rp {
+            p: PhantomData,
+            ptr: self.ptr,
+        }
+    }
+
+    #[inline]
+    pub fn copy_from(&mut self, other: Rp<T>, n: usize) {
+        unsafe { std::ptr::copy(other.raw(), self.raw(), n) }
+    }
 }
 
 impl<T> From<Vec<T>> for Rp<T> {
@@ -262,5 +295,14 @@ mod test {
         for i in 0..len {
             p[i] = Point { x: 1.0, y: 1.0 };
         }
+    }
+
+    #[test]
+    fn endian_test() {
+        let p: Rp<u32> = Rp::new_a(2);
+        let mut pw: Rp<u64> = p.cast();
+        *pw = 0xffffffffeeeeeeee;
+        println!("p[0] = {:X}", p[0]);
+        println!("p[1] = {:X}", p[1]);
     }
 }

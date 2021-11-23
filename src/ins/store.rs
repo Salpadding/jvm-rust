@@ -1,6 +1,6 @@
 use crate::ins::Store;
 use crate::op::OpCode;
-use crate::runtime::{frame::JFrame, frame::Slots, misc::BytesReader, vm::JThread};
+use crate::runtime::{frame::JFrame, misc::BytesReader, misc::Slots, vm::JThread};
 
 macro_rules! xstore {
     ($rd: ident, $mf: ident, $p: ident, $s: ident, $w: expr) => {{

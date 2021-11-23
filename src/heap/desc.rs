@@ -7,7 +7,7 @@ pub struct DescriptorParser<'a> {
 pub struct MethodDescriptor {
     pub params: Vec<JType>,
     pub ret: JType,
-    pub arg_cells: usize,
+    pub arg_slots: u16,
 }
 
 #[derive(Debug)]
@@ -40,15 +40,15 @@ pub trait JTypeDescriptor {
     // -1 for reference
     // 1 for bool byte char short int float
     // 2 for double long
-    fn slots(&self) -> i32;
+    fn slots(&self) -> u16;
 }
 
 impl JTypeDescriptor for str {
-    fn slots(&self) -> i32 {
+    fn slots(&self) -> u16 {
         match self.as_bytes()[0] {
             b'Z' | b'B' | b'C' | b'S' | b'I' | b'F' => 1,
             b'D' | b'J' => 2,
-            _ => -1,
+            _ => 0,
         }
     }
 }
@@ -84,13 +84,13 @@ impl DescriptorParser<'_> {
         let mut r = MethodDescriptor {
             params,
             ret,
-            arg_cells: 0,
+            arg_slots: 0,
         };
 
         for t in r.params.iter() {
             match t {
-                JType::A(_) | JType::FI(_) => r.arg_cells += 1,
-                _ => r.arg_cells += 2,
+                JType::A(_) | JType::FI(_) => r.arg_slots += 1,
+                _ => r.arg_slots += 2,
             }
         }
 

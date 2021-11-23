@@ -1,6 +1,6 @@
 use crate::ins::Math;
 use crate::op::OpCode;
-use crate::runtime::frame::Slots;
+use crate::runtime::misc::Slots;
 use crate::runtime::{frame::JFrame, misc::BytesReader, vm::JThread};
 
 macro_rules! b_op {

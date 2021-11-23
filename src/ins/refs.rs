@@ -75,7 +75,7 @@ impl Refs for OpCode {
 
                 // invoke virtual, resolve method in object class
                 if self == invokevirtual || self == invokeinterface {
-                    let obj = mf.back_obj(sym.member.m_desc.arg_cells + 1);
+                    let obj = mf.back_obj(sym.member.m_desc.arg_slots as usize + 1);
                     if obj.is_null() {
                         panic!("java.lang.NullPointerException");
                     }
@@ -87,10 +87,10 @@ impl Refs for OpCode {
                 mf.pass_args(
                     &mut new_frame,
                     if self == invokestatic {
-                        sym.member.m_desc.arg_cells
+                        sym.member.m_desc.arg_slots as usize
                     } else {
                         // +1 this pointer
-                        sym.member.m_desc.arg_cells + 1
+                        sym.member.m_desc.arg_slots as usize + 1
                     },
                 );
             }

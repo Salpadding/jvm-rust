@@ -48,7 +48,7 @@ macro_rules! xaload {
 impl Load for OpCode {
     fn load(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame, w: bool) {
         use crate::op::OpCode::*;
-        use crate::runtime::frame::Slots;
+        use crate::runtime::misc::Slots;
 
         match self {
             iload | fload => xload!(rd, mf, get_u32, push_u32, w),

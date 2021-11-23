@@ -41,8 +41,8 @@ impl From<&mut MemberInfo> for ClassMember {
             match attr {
                 &mut AttrInfo::Code(ref mut c) => {
                     std::mem::swap(&mut r.code, &mut c.code);
-                    r.max_stack = c.max_stack as usize;
-                    r.max_locals = c.max_locals as usize;
+                    r.max_stack = c.max_stack;
+                    r.max_locals = c.max_locals;
                 }
                 &mut AttrInfo::ConstantValue(i) => {
                     r.cons_i = i as usize;
@@ -416,8 +416,8 @@ pub struct ClassMember {
     pub access_flags: AccessFlags,
     pub name: String,
     pub desc: String,
-    pub max_stack: usize,
-    pub max_locals: usize,
+    pub max_stack: u16,
+    pub max_locals: u16,
     pub code: Vec<u8>,
     pub cons_i: usize,
     pub id: usize,
