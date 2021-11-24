@@ -37,7 +37,7 @@ impl Default for JType {
 }
 
 pub trait JTypeDescriptor {
-    // -1 for reference
+    // 0 for reference
     // 1 for bool byte char short int float
     // 2 for double long
     fn slots(&self) -> u16;

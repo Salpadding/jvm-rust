@@ -4,6 +4,25 @@ use crate::ins::Refs;
 use crate::op::OpCode;
 use crate::runtime::{frame::JFrame, misc::BytesReader, vm::JThread};
 
+macro_rules! asf {
+    ($op: expr, $c: ident, $sym: ident, $mf: ident, $psh: ident, $pp: ident, $t: ty) => {
+        match $op {
+            putstatic => $c.set_static($sym.member.id, $mf.$pp() as u64),
+            getstatic => $mf.$psh($c.get_static($sym.member.id) as $t),
+            putfield => {
+                let v = $mf.$pp();
+                let obj = $mf.pop_obj();
+                obj.fields()[$sym.member.id] = v as u64;
+            }
+            getfield => {
+                let obj = $mf.pop_obj();
+                let v = $c.get_instance(&obj, $sym.member.id);
+                $mf.$psh(v as $t);
+            }
+            _ => {}
+        };
+    };
+}
 impl Refs for OpCode {
     fn refs(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame) {
         use crate::op::OpCode::*;
@@ -24,7 +43,7 @@ impl Refs for OpCode {
             }
             multianewarray => {
                 let a_class = mf.class_ref(rd.u16() as usize);
-                let dim = rd.u8() as usize;
+                let dim = rd.u8() as u16;
                 let counts = mf.pop_slots(dim);
                 let arr = mf.heap.new_multi_dim(a_class.class, counts);
                 mf.push_obj(arr)
@@ -87,10 +106,10 @@ impl Refs for OpCode {
                 mf.pass_args(
                     &mut new_frame,
                     if self == invokestatic {
-                        sym.member.m_desc.arg_slots as usize
+                        sym.member.m_desc.arg_slots
                     } else {
                         // +1 this pointer
-                        sym.member.m_desc.arg_slots as usize + 1
+                        sym.member.m_desc.arg_slots + 1
                     },
                 );
             }
@@ -110,15 +129,6 @@ impl Refs for OpCode {
                     return;
                 }
 
-                if !is {
-                    let o = if o.is_null() {
-                        "null".to_string()
-                    } else {
-                        o.class.name.to_string()
-                    };
-                    // panic!("cannot cast object {} to {}", o, sym.name);
-                }
-
                 mf.push_obj(o);
             }
             putstatic | getstatic | putfield | getfield => {
@@ -136,54 +146,14 @@ impl Refs for OpCode {
 
                 match sym.desc.slots() {
                     1 => {
-                        match self {
-                            putstatic => class.set_static(sym.member.id, mf.pop_u32() as u64),
-                            getstatic => mf.push_u32(class.get_static(sym.member.id) as u32),
-                            putfield => {
-                                let v = mf.pop_u32();
-                                let obj = mf.pop_obj();
-                                obj.fields()[sym.member.id] = v as u64;
-                            }
-                            getfield => {
-                                let obj = mf.pop_obj();
-                                let v = class.get_instance(&obj, sym.member.id);
-                                mf.push_u32(v as u32);
-                            }
-                            _ => {}
-                        };
+                        asf!(self, class, sym, mf, push_u32, pop_u32, u32);
                     }
                     2 => {
-                        match self {
-                            putstatic => class.set_static(sym.member.id, mf.pop_u64() as u64),
-                            getstatic => mf.push_u64(class.get_static(sym.member.id)),
-                            putfield => {
-                                let v = mf.pop_u64();
-                                let obj = mf.pop_obj();
-                                obj.fields()[sym.member.id] = v;
-                            }
-                            getfield => {
-                                let obj = mf.pop_obj();
-                                let v = class.get_instance(&obj, sym.member.id);
-                                mf.push_u64(v);
-                            }
-                            _ => {}
-                        };
+                        asf!(self, class, sym, mf, push_u64, pop_u64, u64);
                     }
-                    _ => match self {
-                        putstatic => class.set_static(sym.member.id, mf.pop_slot()),
-                        getstatic => mf.push_slot(class.get_static(sym.member.id)),
-                        putfield => {
-                            let v = mf.pop_slot();
-                            let obj = mf.pop_obj();
-                            obj.fields()[sym.member.id] = v;
-                        }
-                        getfield => {
-                            let obj = mf.pop_obj();
-                            let v = class.get_instance(&obj, sym.member.id);
-                            mf.push_slot(v);
-                        }
-                        _ => {}
-                    },
+                    _ => {
+                        asf!(self, class, sym, mf, push_slot, pop_slot, u64);
+                    }
                 }
             }
             monitorenter | monitorexit => {

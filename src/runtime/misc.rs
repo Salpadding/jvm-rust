@@ -1,3 +1,12 @@
+pub(crate) trait DupStack {
+    fn dup(&mut self);
+    fn dup2(&mut self);
+    fn dup_x1(&mut self);
+    fn dup_x2(&mut self);
+    fn dup2_x1(&mut self);
+    fn dup2_x2(&mut self);
+    fn swap(&mut self);
+}
 pub struct BytesReader<'a> {
     pub bytes: &'a [u8],
     pub pc: u32,
@@ -53,12 +62,6 @@ impl<'a> BytesReader<'a> {
     }
 }
 
-// Each frame (§2.6) contains an array of variables known as its local variables. The length of the local variable array of a frame is determined at compile-time and supplied in the binary representation of a class or interface along with the code for the method associated with the frame (§4.7.3).
-// A single local variable can hold a value of type boolean, byte, char, short, int, float, reference, or returnAddress. A pair of local variables can hold a value of type long or double.
-// Local variables are addressed by indexing. The index of the first local variable is zero. An integer is considered to be an index into the local variable array if and only if that integer is between zero and one less than the size of the local variable array.
-// A value of type long or type double occupies two consecutive local variables. Such a value may only be addressed using the lesser index. For example, a value of type double stored in the local variable array at index n actually occupies the local variables with indices n and n+1; however, the local variable at index n+1 cannot be loaded from. It can be stored into. However, doing so invalidates the contents of local variable n.
-// The Java Virtual Machine does not require n to be even. In intuitive terms, values of types long and double need not be 64-bit aligned in the local variables array. Implementors are free to decide the appropriate way to represent such values using the two local variables reserved for the value.
-// The Java Virtual Machine uses local variables to pass parameters on method invocation. On class method invocation, any parameters are passed in consecutive local variables starting from local variable 0. On instance m
 pub trait Slots {
     fn set_u32(&mut self, i: usize, v: u32);
     fn get_u32(&self, i: usize) -> u32;
@@ -70,18 +73,9 @@ pub trait Slots {
         f32::from_bits(self.get_u32(i))
     }
 
-    #[inline]
-    fn set_u64(&mut self, i: usize, v: u64) {
-        self.set_u32(i, v as u32);
-        self.set_u32(i + 1, (v >> 32) as u32);
-    }
+    fn set_u64(&mut self, i: usize, v: u64);
 
-    #[inline]
-    fn get_u64(&self, i: usize) -> u64 {
-        let low = self.get_u32(i);
-        let high = self.get_u32(i + 1);
-        ((high as u64) << 32) | (low as u64)
-    }
+    fn get_u64(&self, i: usize) -> u64;
 
     #[inline]
     fn get_i64(&self, i: usize) -> i64 {
@@ -136,5 +130,15 @@ impl Slots for [u64] {
     #[inline]
     fn set_slot(&mut self, i: usize, v: u64) {
         self[i] = v;
+    }
+
+    #[inline]
+    fn set_u64(&mut self, i: usize, v: u64) {
+        self[i] = v;
+    }
+
+    #[inline]
+    fn get_u64(&self, i: usize) -> u64 {
+        self[i]
     }
 }

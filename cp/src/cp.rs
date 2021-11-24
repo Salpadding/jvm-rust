@@ -125,13 +125,6 @@ impl ConstantPool {
         self.utf8(j as usize)
     }
 
-    pub fn u32(&self, i: usize) -> u32 {
-        match self.infos[i] {
-            ConstantInfo::Integer(j) => j as u32,
-            _ => panic!("invalid u32 index found"),
-        }
-    }
-
     pub fn constant(&self, i: usize) -> Constant {
         match self.infos[i] {
             ConstantInfo::Integer(j) => Constant::Primitive(j as u64, false),
@@ -141,27 +134,6 @@ impl ConstantPool {
             ConstantInfo::Class { name_i } => Constant::ClassRef(name_i),
             ConstantInfo::String { utf8_i } => Constant::String(self.utf8(utf8_i as usize)),
             _ => panic!("invalid constant {} {:?}", i, self.infos[i]),
-        }
-    }
-
-    pub fn f32(&self, i: usize) -> f32 {
-        match self.infos[i] {
-            ConstantInfo::Float(j) => j,
-            _ => panic!("invalid integer index"),
-        }
-    }
-
-    pub fn u64(&self, i: usize) -> u64 {
-        match self.infos[i] {
-            ConstantInfo::Long(j) => j,
-            _ => panic!("invalid u64 index"),
-        }
-    }
-
-    pub fn f64(&self, i: usize) -> f64 {
-        match self.infos[i] {
-            ConstantInfo::Double(j) => j,
-            _ => panic!("invalid f64 index"),
         }
     }
 

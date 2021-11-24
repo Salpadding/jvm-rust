@@ -1,6 +1,6 @@
 use crate::ins::Stack;
 use crate::op::OpCode;
-use crate::runtime::{frame::DupStack, frame::JFrame, misc::BytesReader, vm::JThread};
+use crate::runtime::{frame::JFrame, misc::BytesReader, misc::DupStack, vm::JThread};
 
 impl Stack for OpCode {
     fn stack(self, rd: &mut BytesReader, th: &mut JThread, mf: &mut JFrame) {

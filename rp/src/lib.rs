@@ -203,6 +203,22 @@ impl<T> Rp<T> {
         unsafe { core::slice::from_raw_parts_mut(self.raw(), len) }
     }
 
+    // cast to another type pointer
+    #[inline]
+    pub fn cast<U>(&self) -> Rp<U> {
+        Rp {
+            p: PhantomData,
+            ptr: self.ptr,
+        }
+    }
+
+    #[inline]
+    pub fn copy_from(&mut self, other: Rp<T>, n: usize) {
+        unsafe { std::ptr::copy(other.raw(), self.raw(), n) }
+    }
+}
+
+impl<T: Sized> Rp<T> {
     #[inline]
     pub fn offset(&self, off: isize) -> Rp<T> {
         Self {
@@ -217,20 +233,6 @@ impl<T> Rp<T> {
             p: PhantomData,
             ptr: self.ptr + off * core::mem::size_of::<T>(),
         }
-    }
-
-    // cast to another type pointer
-    #[inline]
-    pub fn cast<U>(&self) -> Rp<U> {
-        Rp {
-            p: PhantomData,
-            ptr: self.ptr,
-        }
-    }
-
-    #[inline]
-    pub fn copy_from(&mut self, other: Rp<T>, n: usize) {
-        unsafe { std::ptr::copy(other.raw(), self.raw(), n) }
     }
 }
 

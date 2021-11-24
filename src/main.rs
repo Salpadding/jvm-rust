@@ -4,9 +4,9 @@ extern crate err;
 mod heap;
 mod ins;
 mod natives;
+mod oop;
 mod op;
 mod runtime;
-mod utils;
 
 fn main() {
     use crate::runtime::vm::Jvm;
