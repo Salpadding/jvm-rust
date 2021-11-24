@@ -1,6 +1,5 @@
 use crate::heap::class::{Class, ClassMember, Object};
 use crate::heap::misc::{Heap, SymRef};
-use crate::runtime::misc::Slots;
 use cp::ConstantPool;
 use rp::Rp;
 
@@ -103,8 +102,8 @@ impl JFrame {
     }
 
     #[inline]
-    pub fn drop(&mut self, n: usize) {
-        self.stack_size -= n as u16;
+    pub fn drop(&mut self, n: u16) {
+        self.stack_size -= n;
     }
 
     pub fn reset(&mut self, local_base: Rp<u64>, method: Rp<ClassMember>) {
@@ -115,9 +114,12 @@ impl JFrame {
         self.stack_size = 0;
     }
     #[inline]
-    pub fn pop_slots(&mut self, i: usize) -> &'static [u64] {
-        let r = &self.slots()[self.stack_size as usize - i..self.stack_size as usize];
-        self.stack_size -= i as u16;
+    pub fn pop_slots(&mut self, i: u16) -> &'static mut [u64] {
+        let r = self
+            .stack_base
+            .add((self.stack_size - i) as usize)
+            .as_slice(i as usize);
+        self.stack_size -= i;
         r
     }
 
@@ -129,11 +131,6 @@ impl JFrame {
     #[inline]
     pub fn slots(&self) -> &'static mut [u64] {
         self.stack_base.as_slice(self.max_stack() as usize)
-    }
-
-    #[inline]
-    pub fn stack_size(&self) -> u16 {
-        self.stack_size
     }
 
     #[inline]
@@ -166,11 +163,12 @@ impl JFrame {
     xx_ref!(method_ref);
     xx_ref!(iface_ref);
 
-    pub fn pass_args(&mut self, other: &mut JFrame, arg_cells: usize) {
-        let stack_data =
-            &self.slots()[self.stack_size as usize - arg_cells..self.stack_size as usize];
-        other.local_vars()[..arg_cells].copy_from_slice(stack_data);
-        self.stack_size -= arg_cells as u16;
+    pub fn pass_args(&mut self, other: &mut JFrame, arg_slots: u16) {
+        other.local_base.copy_from(
+            self.stack_base.add((self.stack_size - arg_slots) as usize),
+            arg_slots as usize,
+        );
+        self.drop(arg_slots);
     }
 }
 
@@ -223,8 +221,7 @@ impl JFrame {
 
     #[inline]
     pub fn push_u64(&mut self, v: u64) {
-        self.stack_base[self.stack_size as usize] = v & 0xffffffff;
-        self.stack_base[self.stack_size as usize + 1] = v >> 32;
+        self.stack_base[self.stack_size as usize] = v;
         self.stack_size += 2;
     }
 
@@ -242,9 +239,9 @@ impl JFrame {
 
     #[inline]
     pub fn pop_u32(&mut self) -> u32 {
-        let r = self.slots().get_u32(self.stack_size as usize - 1);
+        let r = self.stack_base[self.stack_size as usize - 1];
         self.stack_size -= 1;
-        r
+        r as u32
     }
 
     pop_x!(pop_u8, u8);
@@ -254,9 +251,8 @@ impl JFrame {
     #[inline]
     pub fn pop_u64(&mut self) -> u64 {
         let low = self.stack_base[self.stack_size as usize - 2];
-        let high = self.stack_base[self.stack_size as usize - 1];
         self.stack_size -= 2;
-        high << 32 | low
+        low
     }
 
     pop_xx!(pop_i64, i64);
@@ -273,7 +269,7 @@ impl JFrame {
 
     #[inline]
     pub fn push_null(&mut self) {
-        self.slots()[self.stack_size as usize] = 0;
+        self.stack_base[self.stack_size as usize] = 0;
         self.stack_size += 1;
     }
 
@@ -285,7 +281,7 @@ impl JFrame {
 
     #[inline]
     pub fn pop_slot(&mut self) -> u64 {
-        let r = self.slots()[self.stack_size as usize - 1];
+        let r = self.stack_base[self.stack_size as usize - 1];
         self.stack_size -= 1;
         r
     }
@@ -306,17 +302,7 @@ impl JFrame {
     }
 }
 
-pub(crate) trait DupStack {
-    fn dup(&mut self);
-    fn dup2(&mut self);
-    fn dup_x1(&mut self);
-    fn dup_x2(&mut self);
-    fn dup2_x1(&mut self);
-    fn dup2_x2(&mut self);
-    fn swap(&mut self);
-}
-
-impl DupStack for JFrame {
+impl crate::runtime::misc::DupStack for JFrame {
     fn dup(&mut self) {
         let top = { self.stack_base[self.stack_size as usize - 1] };
         self.push_slot(top);
