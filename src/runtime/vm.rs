@@ -212,4 +212,21 @@ mod test {
         let mut jvm = Jvm::new(".:test/rt.jar").unwrap();
         jvm.run_class("test/Debug").unwrap();
     }
+
+    #[test]
+    fn test_vec() {
+        use rp::Rp;
+
+        let mut v: Vec<u64> = vec![1u64];
+        let p: Rp<u64> = v.as_ptr().into();
+
+        println!("*p = {}", *p);
+
+        for i in 0..127 {
+            v.push(i);
+        }
+
+        println!("*p = {}", *p);
+        println!("*p + 1 = {}", p[1]);
+    }
 }
