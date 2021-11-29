@@ -8,7 +8,8 @@ pub struct JStack {
     frames: [JFrame; MAX_JSTACK_SIZE],
     // default stack size = 64k = 64 * 1024
     stack_data: Vec<u64>,
-    size: usize,
+    size: u16,
+    cap: u32,
 }
 
 impl JStack {
@@ -17,6 +18,7 @@ impl JStack {
             frames: [JFrame::default(); MAX_JSTACK_SIZE],
             size: 0,
             stack_data: vec![0; 64 * 1024 / 8],
+            cap: 0,
         };
 
         for i in 0..r.frames.len() {
@@ -28,10 +30,11 @@ impl JStack {
     }
 
     pub fn push_frame(&mut self, m: Rp<ClassMember>) -> Rp<JFrame> {
+        self.check_realloc(m);
         let empty = self.is_empty();
         let cur = if empty { Rp::null() } else { self.cur_frame() };
 
-        let f = &mut self.frames[self.size];
+        let f = &mut self.frames[self.size as usize];
 
         // TODO: use realloc to allocate memory
         // assign stack base
@@ -47,24 +50,51 @@ impl JStack {
         f.into()
     }
 
+    fn check_realloc(&mut self, m: Rp<ClassMember>) {
+        self.cap += m.max_locals as u32 + m.max_stack as u32;
+        if self.cap as usize <= self.stack_data.len() {
+            return;
+        }
+
+        let mut i = self.stack_data.len() as u32;
+        while i < self.cap {
+            i *= 2;
+        }
+
+        let mut new_data = vec![0u64; i as usize];
+        new_data[0..self.stack_data.len()].copy_from_slice(&self.stack_data);
+        self.stack_data = new_data;
+        // realloc
+
+        let mut base: Rp<u64> = self.stack_data.as_ptr().into();
+
+        for i in 0..self.size {
+            let f = &mut self.frames[i as usize];
+            f.on_realloc(base);
+            base = f.stack_base.add(f.max_stack() as usize)
+        }
+    }
+
     #[inline]
     pub fn pop_frame(&mut self) {
+        let f = self.cur_frame();
+        self.cap -= f.max_locals() as u32 + f.max_stack() as u32;
         self.size -= 1;
     }
 
     #[inline]
     pub fn back_frame(&self, i: usize) -> Rp<JFrame> {
-        unsafe { self.frames.as_ptr().add(self.size - i).into() }
+        unsafe { self.frames.as_ptr().add(self.size as usize - i).into() }
     }
 
     #[inline]
     pub fn prev_frame(&self) -> Rp<JFrame> {
-        unsafe { self.frames.as_ptr().add(self.size - 2).into() }
+        unsafe { self.frames.as_ptr().add(self.size as usize - 2).into() }
     }
 
     #[inline]
     pub fn cur_frame(&self) -> Rp<JFrame> {
-        unsafe { self.frames.as_ptr().add(self.size - 1).into() }
+        unsafe { self.frames.as_ptr().add(self.size as usize - 1).into() }
     }
 
     #[inline]
@@ -113,6 +143,12 @@ impl JFrame {
         self.stack_base = unsafe { self.local_base.raw().add(self.max_locals() as usize).into() };
         self.stack_size = 0;
     }
+
+    pub fn on_realloc(&mut self, local_base: Rp<u64>) {
+        self.local_base = local_base;
+        self.stack_base = unsafe { self.local_base.raw().add(self.max_locals() as usize).into() };
+    }
+
     #[inline]
     pub fn pop_slots(&mut self, i: u16) -> &'static mut [u64] {
         let r = self
@@ -126,11 +162,6 @@ impl JFrame {
     #[inline]
     pub fn local_vars(&self) -> &'static mut [u64] {
         self.local_base.as_slice(self.max_locals() as usize)
-    }
-
-    #[inline]
-    pub fn slots(&self) -> &'static mut [u64] {
-        self.stack_base.as_slice(self.max_stack() as usize)
     }
 
     #[inline]
